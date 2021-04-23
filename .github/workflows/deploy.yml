@@ -11,8 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository and submodules
         uses: actions/checkout@v2.3.4
+        with:
+          submodules: recursive
+
+      - name: Test LS
+        run: ls
 
       - name: Install and Build
         run: |
