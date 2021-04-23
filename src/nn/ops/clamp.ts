@@ -1,17 +1,16 @@
 import * as tf from '@tensorflow/tfjs-core';
 
-import {ExecutionContext} from '../compilation';
-import {ClampOptions} from '../model_builder';
-import {Operand} from '../operand';
+import {MLClampOptions} from '../graph_builder';
+import {MLOperand} from '../operand';
 import {SingleOutputOperation} from '../operation';
 import * as utils from '../utils';
 
 export class Clamp extends SingleOutputOperation {
-  private x_: Operand;
-  private minValue_?: Operand;
-  private maxValue_?: Operand;
+  private x_: MLOperand;
+  private minValue_?: MLOperand;
+  private maxValue_?: MLOperand;
 
-  constructor(x: Operand, options: ClampOptions = {}) {
+  constructor(x: MLOperand, options: MLClampOptions = {}) {
     super(x.builder);
     utils.validateOperand(x);
     this.x_ = x;
@@ -21,7 +20,7 @@ export class Clamp extends SingleOutputOperation {
     this.maxValue_ = options.maxValue;
   }
 
-  inputs(): Operand[] {
+  inputs(): MLOperand[] {
     const inputs = [this.x_];
     if (this.minValue_) {
       inputs.push(this.minValue_);
@@ -32,21 +31,21 @@ export class Clamp extends SingleOutputOperation {
     return inputs;
   }
 
-  run(context: ExecutionContext): tf.Tensor {
-    const x: tf.Tensor = context.getTensor(this.x_);
+  run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor {
+    const x: tf.Tensor = inputTensors.get(this.x_);
     if (this.minValue_) {
       if (this.maxValue_) {
         return tf.minimum(
-            tf.maximum(x, context.getTensor(this.minValue_)),
-            context.getTensor(this.maxValue_));
+            tf.maximum(x, inputTensors.get(this.minValue_)),
+            inputTensors.get(this.maxValue_));
       } else {
-        return tf.maximum(x, context.getTensor(this.minValue_));
+        return tf.maximum(x, inputTensors.get(this.minValue_));
       }
     } else {
       if (this.maxValue_) {
-        return tf.minimum(x, context.getTensor(this.maxValue_));
+        return tf.minimum(x, inputTensors.get(this.maxValue_));
       } else {
-        return x;
+        return tf.clone(x);
       }
     }
   }

@@ -1,14 +1,14 @@
 import * as tf from '@tensorflow/tfjs-core';
 
-import {ExecutionContext} from './compilation';
-import {ModelBuilder} from './model_builder';
-import {Operand, OutputOperand} from './operand';
+import {ExecutionContext} from './graph';
+import {MLGraphBuilder} from './graph_builder';
+import {MLOperand, OutputOperand} from './operand';
 
 export abstract class Operation {
-  protected readonly builder_: ModelBuilder;
+  protected readonly builder_: MLGraphBuilder;
   protected outputs_: OutputOperand[] = [];
 
-  get builder(): ModelBuilder {
+  get builder(): MLGraphBuilder {
     return this.builder_;
   }
 
@@ -16,16 +16,31 @@ export abstract class Operation {
     return this.outputs_;
   }
 
-  constructor(builder: ModelBuilder) {
+  constructor(builder: MLGraphBuilder) {
     this.builder_ = builder;
   }
 
-  abstract inputs(): Operand[];
-  abstract compute(context: ExecutionContext): void;
+  abstract inputs(): MLOperand[];
+
+  compute(context: ExecutionContext): void {
+    const inputTensors: Map<MLOperand, tf.Tensor> = new Map();
+    for (const inputOperand of this.inputs()) {
+      inputTensors.set(inputOperand, context.getTensor(inputOperand));
+    }
+    const outputTensors = tf.tidy(() => this.computeImpl(inputTensors));
+    for (let i = 0; i < this.outputs_.length; ++i) {
+      context.setOutputTensor(this.outputs_[i], outputTensors[i]);
+    }
+    for (const inputOperand of this.inputs()) {
+      context.releaseTensor(inputOperand);
+    }
+  }
+
+  abstract computeImpl(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor[];
 }
 
 export abstract class SingleOutputOperation extends Operation {
-  constructor(builder: ModelBuilder) {
+  constructor(builder: MLGraphBuilder) {
     super(builder);
     // Operation produces 1 output operand by default.
     this.outputs_.push(new OutputOperand(this));
@@ -35,9 +50,9 @@ export abstract class SingleOutputOperation extends Operation {
     return this.outputs_[0];
   }
 
-  compute(context: ExecutionContext): void {
-    context.setOutputTensor(this.output, this.run(context));
+  computeImpl(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor[] {
+    return [this.run(inputTensors)];
   }
 
-  abstract run(context: ExecutionContext): tf.Tensor;
+  abstract run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor;
 }

@@ -1,36 +1,37 @@
 import * as tf from '@tensorflow/tfjs-core';
 
-import {ExecutionContext} from '../compilation';
-import {OperandLayout, Pooling2dOptions} from '../model_builder';
-import {Operand} from '../operand';
+import {MLAutoPad, MLInputOperandLayout, MLPooling2dOptions} from '../graph_builder';
+import {MLOperand} from '../operand';
 import {SingleOutputOperation} from '../operation';
 import * as utils from '../utils';
 
 type PoolingType = 'avg'|'max';
 
 export abstract class Pool extends SingleOutputOperation {
-  protected input_: Operand;
+  protected input_: MLOperand;
   protected windowDimensions_?: [number, number];
   protected padding_?: [number, number, number, number];
   protected strides_?: [number, number];
   protected dilations_?: [number, number];
   protected groups_?: number;
-  protected layout_?: OperandLayout;
+  protected layout_?: MLInputOperandLayout;
+  private autoPad_?: MLAutoPad;
 
-  constructor(input: Operand, options: Pooling2dOptions = {}) {
+  constructor(input: MLOperand, options: MLPooling2dOptions = {}) {
     super(input.builder);
     utils.validateOperand(input);
     this.input_ = input;
     this.initOptions(
         options.windowDimensions, options.padding, options.strides,
-        options.dilations, options.layout);
+        options.dilations, options.layout, options.autoPad);
   }
 
   private initOptions(
       windowDimensions: [number, number] = [-1, -1],
       padding: [number, number, number, number] = [0, 0, 0, 0],
       strides: [number, number] = [1, 1], dilations: [number, number] = [1, 1],
-      layout: OperandLayout = OperandLayout.nchw) {
+      layout: MLInputOperandLayout = MLInputOperandLayout.nchw,
+      autoPad: MLAutoPad = MLAutoPad.explicit) {
     utils.assert(
         utils.isIntegerArray(windowDimensions) && windowDimensions.length === 2,
         'The padding parameter is invalid.');
@@ -51,24 +52,37 @@ export abstract class Pool extends SingleOutputOperation {
         'The dilations parameter is invalid.');
     this.dilations_ = dilations;
 
-    utils.assert(layout in OperandLayout, 'The layout parameter is invalid.');
+    utils.assert(
+        layout in MLInputOperandLayout, 'The layout parameter is invalid.');
     this.layout_ = layout;
+
+    utils.assert(autoPad in MLAutoPad, 'The autoPad parameter is invalid.');
+    this.autoPad_ = autoPad;
   }
 
-  inputs(): Operand[] {
+  inputs(): MLOperand[] {
     return [this.input_];
   }
 
-  run(context: ExecutionContext): tf.Tensor {
-    let input: tf.Tensor4D = context.getTensor(this.input_) as tf.Tensor4D;
-    utils.assert(
-        this.padding_.every(v => v === this.padding_[0]),
-        'The tf.conv2d only supports the same padding value.');
-    const padding = this.padding_[0];
+  run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor {
+    let input: tf.Tensor4D = inputTensors.get(this.input_) as tf.Tensor4D;
+    let padding: 'valid'|'same'|number;
+    if (this.autoPad_ === MLAutoPad.explicit) {
+      utils.assert(
+          this.padding_.every(v => v === this.padding_[0]),
+          'tf.pool only supports the same padding value.');
+      padding = this.padding_[0] === 0 ? 'valid' : this.padding_[0];
+    } else {
+      if (this.autoPad_ === MLAutoPad['same-lower']) {
+        padding = 'same';
+      } else {
+        throw new Error('tf.pool only supports the same-lower auto pad.');
+      }
+    }
     const poolingType = this.getPoolingType();
-    if (this.layout_ === OperandLayout.nchw) {
+    if (this.layout_ === MLInputOperandLayout.nchw) {
       // nchw -> nhwc
-      input = input.transpose([0, 2, 3, 1]);
+      input = tf.transpose(input, [0, 2, 3, 1]);
     }
     const windowDimensions = this.windowDimensions_;
     if (windowDimensions[0] === -1 && windowDimensions[1] === -1) {
@@ -78,9 +92,9 @@ export abstract class Pool extends SingleOutputOperation {
     let output = tf.pool(
         input, this.windowDimensions_, poolingType, padding, this.dilations_,
         this.strides_);
-    if (this.layout_ === OperandLayout.nchw) {
+    if (this.layout_ === MLInputOperandLayout.nchw) {
       // nhwc -> nchw
-      output = output.transpose([0, 3, 1, 2]);
+      output = tf.transpose(output, [0, 3, 1, 2]);
     }
     return output;
   }

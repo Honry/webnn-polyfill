@@ -1,23 +1,22 @@
 import * as tf from '@tensorflow/tfjs-core';
 
-import {ExecutionContext} from '../compilation';
-import {BatchNormalizationOptions} from '../model_builder';
-import {Operand} from '../operand';
+import {MLBatchNormalizationOptions} from '../graph_builder';
+import {MLOperand} from '../operand';
 import {SingleOutputOperation} from '../operation';
 import * as utils from '../utils';
 
 export class BatchNormalization extends SingleOutputOperation {
-  private input_: Operand;
-  private mean_: Operand;
-  private variance_: Operand;
-  private scale_?: Operand;
-  private bias_?: Operand;
+  private input_: MLOperand;
+  private mean_: MLOperand;
+  private variance_: MLOperand;
+  private scale_?: MLOperand;
+  private bias_?: MLOperand;
   private axis_?: number;
   private epsilon_?: number;
 
   constructor(
-      input: Operand, mean: Operand, variance: Operand,
-      options: BatchNormalizationOptions = {}) {
+      input: MLOperand, mean: MLOperand, variance: MLOperand,
+      options: MLBatchNormalizationOptions = {}) {
     super(input.builder);
     utils.validateOperand(input);
     this.input_ = input;
@@ -46,8 +45,8 @@ export class BatchNormalization extends SingleOutputOperation {
     }
   }
 
-  inputs(): Operand[] {
-    const inputs: Operand[] = [this.input_, this.mean_, this.variance_];
+  inputs(): MLOperand[] {
+    const inputs: MLOperand[] = [this.input_, this.mean_, this.variance_];
     if (this.scale_) {
       inputs.push(this.scale_);
     }
@@ -57,34 +56,34 @@ export class BatchNormalization extends SingleOutputOperation {
     return inputs;
   }
 
-  run(context: ExecutionContext): tf.Tensor {
-    const input: tf.Tensor = context.getTensor(this.input_);
+  run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor {
+    const input: tf.Tensor = inputTensors.get(this.input_);
     utils.assert(
         this.axis_ < input.rank && this.axis_ >= -input.rank,
         'The axis parameter is invalid.');
     const axis = this.axis_ >= 0 ? this.axis_ : input.rank + this.axis_;
-    const mean: tf.Tensor = context.getTensor(this.mean_);
+    const mean: tf.Tensor = inputTensors.get(this.mean_);
     utils.assert(mean.rank === 1, 'The mean operand is not 1-D.');
-    const variance: tf.Tensor = context.getTensor(this.variance_);
+    const variance: tf.Tensor = inputTensors.get(this.variance_);
     utils.assert(variance.rank === 1, 'The mean operand is not 1-D.');
     let scale: tf.Tensor;
     if (this.scale_) {
-      scale = context.getTensor(this.scale_);
+      scale = inputTensors.get(this.scale_);
       utils.assert(scale.rank === 1, 'The scale operand is not 1-D.');
     }
     let bias: tf.Tensor;
     if (this.bias_) {
-      bias = context.getTensor(this.bias_);
+      bias = inputTensors.get(this.bias_);
       utils.assert(bias.rank === 1, 'The bias operand is not 1-D.');
     }
     // tf.batchNorm only computes for the last dimension.
     const permutation = Array.from(Array(input.rank).keys());
     permutation[axis] = input.rank - 1;
     permutation[input.rank - 1] = axis;
-    return tf
-        .batchNorm(
+    return tf.transpose(
+        tf.batchNorm(
             tf.transpose(input, permutation), mean, variance, bias, scale,
-            this.epsilon_)
-        .transpose(permutation);
+            this.epsilon_),
+        permutation);
   }
 }

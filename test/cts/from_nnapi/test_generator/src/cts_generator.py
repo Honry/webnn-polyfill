@@ -302,10 +302,10 @@ def GetOperandValue(oprand, operation, opInsList, name, layout, value=None):
 
     return opValue
 
-def PrintInputBuffer(oprand, operation, opInsList, name, value, layout, test):
+def PrintInputData(oprand, operation, opInsList, name, value, layout, test):
     typedArray = oprand.type.mappingTypedArrayType
     opValue = GetOperandValue(oprand, operation, opInsList, name, layout, value)
-    IndentedPrint('const %sBuffer = new %s(%s);' % (oprand, typedArray, opValue),
+    IndentedPrint('const %sData = new %s(%s);' % (oprand, typedArray, opValue),
                   indent=4, file=test)
 
 def PrintConstant(oprand, operation, opInsList, opInsInfoList, name, layout,
@@ -401,13 +401,21 @@ def GetWebNNOperationParamsList(opInsInfoList, opInsList, inputFeedDict,
             lastParam['dilations'].reverse()
     return paramsList
 
-def UpdateWebNNOperationOptionalParamValue(targetValue, kvList):
+def UpdateWebNNOperationOptionalParamValue(operation, targetValue, kvList,
+                                           layout):
     if isinstance(targetValue, dict):
         for key, value in kvList:
             if targetValue.get(key, None) is None:
                 targetValue[key] = value
                 if key == 'layout':
                     targetValue[key] = 'nchw' if value else 'nhwc'
+                    if operation in ['CONV_2D', 'DEPTHWISE_CONV_2D']:
+                        if not value:
+                            targetValue['filterLayout'] = 'hwio'
+        if operation in ['CONV_2D', 'DEPTHWISE_CONV_2D']:
+            if targetValue.get('filterLayout', None) == None:
+                if not layout:
+                    targetValue['filterLayout'] = 'hwio'
 
 def GetWebNNParamsString(params):
     paramsList = [p[1] for p in params]
@@ -564,7 +572,7 @@ def DumpCtsTest(example, test):
                       (tg.FileNames.version,
                        os.path.basename(tg.FileNames.specFile)),
                       indent=4, file=test)
-        IndentedPrint("const builder = nn.createModelBuilder();",
+        IndentedPrint("const builder = new MLGraphBuilder(context);",
                       indent=4, file=test)
         computeParamsList = []
         # Create operand(s) by ModelBuilder.input
@@ -576,10 +584,10 @@ def DumpCtsTest(example, test):
                 if rule == md.MappingRule.OPERAND_OPERAND:
                     PrintInputOperand(op, nnapiOp, curOpInsList, nnapiOpInsList,
                                       layout, test)
-                    PrintInputBuffer(op, nnapiOp, curOpInsList,
-                                     opInsDict['name'], inputFeedDict[op],
-                                     layout, test)
-                    computeParamsList.append("'%s': {buffer: %sBuffer}" % \
+                    PrintInputData(op, nnapiOp, curOpInsList,
+                                   opInsDict['name'], inputFeedDict[op],
+                                   layout, test)
+                    computeParamsList.append("'%s': {data: %sData}" % \
                                              (op, op))
                 elif rule == md.MappingRule.OPERAND_VARIABLE:
                     varValue = inputFeedDict[op]
@@ -596,10 +604,10 @@ def DumpCtsTest(example, test):
                     biasOp = op
                     PrintInputOperand(op, nnapiOp, curOpInsList, nnapiOpInsList,
                                       layout, test)
-                    PrintInputBuffer(op, nnapiOp, curOpInsList,
-                                     opInsDict['name'], inputFeedDict[op],
-                                     layout, test)
-                    computeParamsList.append("'%s': {buffer: %sBuffer}" % \
+                    PrintInputData(op, nnapiOp, curOpInsList,
+                                   opInsDict['name'], inputFeedDict[op],
+                                   layout, test)
+                    computeParamsList.append("'%s': {data: %sData}" % \
                                              (op, op))
         # Create operand(s) by ModelBuilder.constant, or define variable(s)
         for op in curParamsList:
@@ -664,21 +672,26 @@ def DumpCtsTest(example, test):
                                                     inputFeedDict,
                                                     curParamsList,
                                                     nnapiOp)
-        UpdateWebNNOperationOptionalParamValue(mappingParams[-1][1],
-                                               optionsKeyValueList)
+        UpdateWebNNOperationOptionalParamValue(nnapiOp, mappingParams[-1][1],
+                                               optionsKeyValueList, layout)
         webnnParamsStr = GetWebNNParamsString(mappingParams)
+        if nnapiOp == 'SQRT':
+            exponent = "const exponent = builder.constant({type: 'float32'," + \
+                " dimensions: [1]}, new Float32Array([0.5]));"
+            IndentedPrint(exponent, indent=4, file=test)
+            webnnParamsStr = ', '.join([webnnParamsStr, 'exponent'])
+        if nnapiOp in ['CONV_2D', 'DEPTHWISE_CONV_2D']:
+            webnnParamsStr = webnnParamsStr.replace("'layout'", "'inputLayout'")
         PrintOperations(biasOp, mappedWebNNOp, webnnParamsStr,
                         fusedReluMappedInfo, outputOp, test)
         if len(curOutputsList) == 1:
-            IndentedPrint("const model = builder.createModel({%s});" % outputOp,
+            IndentedPrint("const graph = await builder.build({%s});" % outputOp,
                           indent=4, file=test)
         elif len(curOutputsList) > 1:
             outputOpNameList = [item.name for item in outputOp]
-            IndentedPrint("const model = builder.createModel({%s});" % \
+            IndentedPrint("const graph = await builder.build({%s});" % \
                           ', '.join(outputOpNameList), indent=4, file=test)
-        IndentedPrint("const compilation = await model.compile();", indent=4,
-                      file=test)
-        IndentedPrint("const outputs = await compilation.compute({%s});" % \
+        IndentedPrint("const outputs = await graph.compute({%s});" % \
                       ', '.join(computeParamsList), indent=4, file=test)
         # Check compute output
         criteria = 'utils.ctsFp32RestrictAccuracyCriteria'
@@ -686,15 +699,15 @@ def DumpCtsTest(example, test):
             criteria = 'utils.ctsFp32RelaxedAccuracyCriteria'
         if len(curOutputsList) == 1:
             IndentedPrint(
-                "utils.checkValue(outputs.%s.buffer, expected, %s);" % \
+                "utils.checkValue(outputs.%s.data, expected, %s);" % \
                 (outputOp, criteria), indent=4, file=test)
         elif len(curOutputsList) > 1:
             IndentedPrint('for (let i = 0; i < %d; i++) {' % \
                           len(curOutputsList), indent=4, file=test)
-            bufferStr = 'outputs[%s[i]].buffer' % ['%s' % k for k in outputOp]
+            dataStr = 'outputs[%s[i]].data' % ['%s' % k for k in outputOp]
             IndentedPrint(
                 "utils.checkValue(%s, expected[i], %s);" % \
-                (bufferStr, criteria), indent=6, file=test)
+                (dataStr, criteria), indent=6, file=test)
             IndentedPrint("}", indent=4, file=test)
         IndentedPrint("});", indent=2, file=test)
         testIndex += 1

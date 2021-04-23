@@ -2,14 +2,21 @@
 import * as utils from '../../utils.js';
 
 const url = import.meta.url;
+const assert = chai.assert;
 
 describe('test squeezenet1.0 nhwc', function() {
   // eslint-disable-next-line no-invalid-this
   this.timeout(0);
-  let compiledModel;
+  let graph;
+  let beforeNumBytes;
+  let beforeNumTensors;
   before(async () => {
-    const nn = navigator.ml.getNeuralNetworkContext();
-    const builder = nn.createModelBuilder();
+    if (typeof _tfengine !== 'undefined') {
+      beforeNumBytes = _tfengine.memory().numBytes;
+      beforeNumTensors = _tfengine.memory().numTensors;
+    }
+    const context = navigator.ml.createContext();
+    const builder = new MLGraphBuilder(context);
 
     async function buildConv(input, name, options = undefined) {
       const prefix = './weights/' + name;
@@ -20,9 +27,10 @@ describe('test squeezenet1.0 nhwc', function() {
       const bias =
           await utils.buildConstantFromNpy(builder, new URL(biasName, url));
       if (options !== undefined) {
-        options.layout = 'nhwc';
+        options.inputLayout = 'nhwc';
+        options.filterLayout = 'hwio';
       } else {
-        options = {layout: 'nhwc'};
+        options = {inputLayout: 'nhwc', filterLayout: 'hwio'};
       }
       return builder.relu(builder.add(
           builder.conv2d(input, weights, options),
@@ -66,20 +74,32 @@ describe('test squeezenet1.0 nhwc', function() {
         conv10, {windowDimensions: [13, 13], layout: 'nhwc'});
     const reshape = builder.reshape(averagePool2d, [1, -1]);
     const softmax = builder.softmax(reshape);
-    const model = builder.createModel({softmax});
-    compiledModel = await model.compile();
+    graph = await builder.build({softmax});
+  });
+
+  after(async () => {
+    if (typeof _tfengine !== 'undefined') {
+      // Check memory leaks.
+      graph.dispose();
+      const afterNumTensors = _tfengine.memory().numTensors;
+      const afterNumBytes = _tfengine.memory().numBytes;
+      assert(
+          beforeNumTensors === afterNumTensors,
+          `${afterNumTensors - beforeNumTensors} tensors are leaked.`);
+      assert(
+          beforeNumBytes === afterNumBytes,
+          `${afterNumBytes - beforeNumBytes} bytes are leaked.`);
+    }
   });
 
   async function testSqueezeNet(inputFile, expectedFile) {
     const input = await utils.createTypedArrayFromNpy(new URL(inputFile, url));
     const expected =
         await utils.createTypedArrayFromNpy(new URL(expectedFile, url));
-    const outputs =
-        await compiledModel.compute({'placeholder': {buffer: input}});
+    const outputs = await graph.compute({'placeholder': {data: input}});
     utils.checkShape(outputs.softmax.dimensions, [1, 1001]);
     utils.checkValue(
-        outputs.softmax.buffer, expected,
-        utils.ctsFp32RestrictAccuracyCriteria);
+        outputs.softmax.data, expected, utils.ctsFp32RestrictAccuracyCriteria);
   }
 
   it('test_data_set_0', async function() {

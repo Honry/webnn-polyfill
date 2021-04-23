@@ -1,18 +1,17 @@
 import * as tf from '@tensorflow/tfjs-core';
 
-import {ExecutionContext} from '../compilation';
-import {SplitOptions} from '../model_builder';
-import {Operand, OutputOperand} from '../operand';
+import {MLSplitOptions} from '../graph_builder';
+import {MLOperand, OutputOperand} from '../operand';
 import {Operation} from '../operation';
 import * as utils from '../utils';
 
 export class Split extends Operation {
-  private input_: Operand;
+  private input_: MLOperand;
   private splits_: number|number[];
   private axis_?: number;
 
   constructor(
-      input: Operand, splits: number|number[], options: SplitOptions = {}) {
+      input: MLOperand, splits: number|number[], options: MLSplitOptions = {}) {
     super(input.builder);
     utils.validateOperand(input);
     this.input_ = input;
@@ -33,15 +32,12 @@ export class Split extends Operation {
     }
   }
 
-  inputs(): Operand[] {
+  inputs(): MLOperand[] {
     return [this.input_];
   }
 
-  compute(context: ExecutionContext): void {
-    const input: tf.Tensor = context.getTensor(this.input_);
-    const tensors = tf.split(input, this.splits_, this.axis_);
-    for (let i = 0; i < tensors.length; ++i) {
-      context.setOutputTensor(this.outputs[i], tensors[i]);
-    }
+  computeImpl(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor[] {
+    const input: tf.Tensor = inputTensors.get(this.input_);
+    return tf.split(input, this.splits_, this.axis_);
   }
 }

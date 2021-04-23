@@ -2,10 +2,10 @@
 import * as utils from '../utils.js';
 
 describe('test conv2d', function() {
-  const nn = navigator.ml.getNeuralNetworkContext();
+  const context = navigator.ml.createContext();
 
   it('conv2d with padding', async function() {
-    const builder = nn.createModelBuilder();
+    const builder = new MLGraphBuilder(context);
     const input =
         builder.input('input', {type: 'float32', dimensions: [1, 1, 5, 5]});
     const filter = builder.constant(
@@ -13,51 +13,49 @@ describe('test conv2d', function() {
         new Float32Array(9).fill(1));
     const padding = [1, 1, 1, 1];
     const output = builder.conv2d(input, filter, {padding});
-    const model = builder.createModel({output});
-    const compiledModel = await model.compile();
+    const graph = await builder.build({output});
     const inputs = {
       'input': {
-        buffer: new Float32Array([
+        data: new Float32Array([
           0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
           13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
         ]),
       },
     };
-    const outputs = await compiledModel.compute(inputs);
+    const outputs = await graph.compute(inputs);
     utils.checkShape(outputs.output.dimensions, [1, 1, 5, 5]);
     const expected = [
       12.,  21., 27., 33.,  24.,  33.,  54.,  63., 72.,  51.,  63.,  99., 108.,
       117., 81., 93., 144., 153., 162., 111., 72., 111., 117., 123., 84.,
     ];
-    utils.checkValue(outputs.output.buffer, expected);
+    utils.checkValue(outputs.output.data, expected);
   });
 
   it('conv2d without padding', async function() {
-    const builder = nn.createModelBuilder();
+    const builder = new MLGraphBuilder(context);
     const input =
         builder.input('input', {type: 'float32', dimensions: [1, 1, 5, 5]});
     const filter = builder.constant(
         {type: 'float32', dimensions: [1, 1, 3, 3]},
         new Float32Array(9).fill(1));
     const output = builder.conv2d(input, filter);
-    const model = builder.createModel({output});
-    const compiledModel = await model.compile();
+    const graph = await builder.build({output});
     const inputs = {
       'input': {
-        buffer: new Float32Array([
+        data: new Float32Array([
           0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
           13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
         ]),
       },
     };
-    const outputs = await compiledModel.compute(inputs);
+    const outputs = await graph.compute(inputs);
     utils.checkShape(outputs.output.dimensions, [1, 1, 3, 3]);
     const expected = [54., 63., 72., 99., 108., 117., 144., 153., 162.];
-    utils.checkValue(outputs.output.buffer, expected);
+    utils.checkValue(outputs.output.data, expected);
   });
 
   it('conv2d with strides=2 and padding', async function() {
-    const builder = nn.createModelBuilder();
+    const builder = new MLGraphBuilder(context);
     const input =
         builder.input('input', {type: 'float32', dimensions: [1, 1, 7, 5]});
     const filter = builder.constant(
@@ -66,26 +64,25 @@ describe('test conv2d', function() {
     const padding = [1, 1, 1, 1];
     const strides = [2, 2];
     const output = builder.conv2d(input, filter, {padding, strides});
-    const model = builder.createModel({output});
-    const compiledModel = await model.compile();
+    const graph = await builder.build({output});
     const inputs = {
       'input': {
-        buffer: new Float32Array([
+        data: new Float32Array([
           0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
           12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
           24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
         ]),
       },
     };
-    const outputs = await compiledModel.compute(inputs);
+    const outputs = await graph.compute(inputs);
     utils.checkShape(outputs.output.dimensions, [1, 1, 4, 3]);
     const expected =
         [12., 27., 24., 63., 108., 81., 123., 198., 141., 112., 177., 124.];
-    utils.checkValue(outputs.output.buffer, expected);
+    utils.checkValue(outputs.output.data, expected);
   });
 
   it('conv2d with strides=2 and asymetric padding', async function() {
-    const builder = nn.createModelBuilder();
+    const builder = new MLGraphBuilder(context);
     const input =
         builder.input('input', {type: 'float32', dimensions: [1, 1, 5, 5]});
     const filter = builder.constant(
@@ -94,25 +91,59 @@ describe('test conv2d', function() {
     const padding = [1, 2, 0, 1];
     const strides = [2, 2];
     const output = builder.conv2d(input, filter, {padding, strides});
-    const model = builder.createModel({output});
-    const compiledModel = await model.compile();
+    const graph = await builder.build({output});
     const inputs = {
       'input': {
-        buffer: new Float32Array([
+        data: new Float32Array([
           0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
           13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
         ]),
       },
     };
-    const outputs = await compiledModel.compute(inputs);
+    const outputs = await graph.compute(inputs);
     utils.checkShape(outputs.output.dimensions, [1, 1, 3, 3]);
     const expected = [33, 45, 27, 104, 120, 66, 72, 80, 43];
-    utils.checkValue(outputs.output.buffer, expected);
+    utils.checkValue(outputs.output.data, expected);
+  });
+
+  it('conv2d with autopad same', async function() {
+    const builder = new MLGraphBuilder(context);
+    const input =
+        builder.input('input', {type: 'float32', dimensions: [1, 1, 5, 5]});
+    const filter = builder.constant(
+        {type: 'float32', dimensions: [1, 1, 3, 3]},
+        new Float32Array(9).fill(1));
+    const autoPad = 'same-lower';
+    const strides = [2, 2];
+    const output = builder.conv2d(input, filter, {autoPad, strides});
+    const graph = await builder.build({output});
+    const inputs = {
+      'input': {
+        data: new Float32Array([
+          0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+          13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        ]),
+      },
+    };
+    const outputs = await graph.compute(inputs);
+    utils.checkShape(outputs.output.dimensions, [1, 1, 3, 3]);
+    const expected = [
+      12.,
+      27.,
+      24.,
+      63.,
+      108.,
+      81.,
+      72.,
+      117.,
+      84.,
+    ];
+    utils.checkValue(outputs.output.data, expected);
   });
 
   it('conv2d depthwise nhwc', async function() {
     // It is based on Android NNAPI CTS: V1_2/depthwise_conv2d_v1_2.mod.py
-    const builder = nn.createModelBuilder();
+    const builder = new MLGraphBuilder(context);
     const input =
         builder.input('input', {type: 'float32', dimensions: [1, 2, 2, 4]});
     const inputBuffer = new Float32Array(
@@ -140,18 +171,18 @@ describe('test conv2d', function() {
         {type: 'float32', dimensions: [4]},
         new Float32Array([6000, 7000, 8000, 9000]));
     const expected = [6010, 7046, 11000, 9000];
-    const conv = builder.conv2d(input, filter, {layout: 'nhwc', groups: 4});
+    const conv = builder.conv2d(
+        input, filter, {inputLayout: 'nhwc', filterLayout: 'hwio', groups: 4});
     const output = builder.add(conv, bias);
-    const model = builder.createModel({output});
-    const compilation = await model.compile();
-    const outputs = await compilation.compute({'input': {buffer: inputBuffer}});
+    const graph = await builder.build({output});
+    const outputs = await graph.compute({'input': {data: inputBuffer}});
     utils.checkShape(outputs.output.dimensions, [1, 1, 1, 4]);
-    utils.checkValue(outputs.output.buffer, expected);
+    utils.checkValue(outputs.output.data, expected);
   });
 
   it('conv2d depthwise nchw', async function() {
     // It is based on Android NNAPI CTS: V1_2/depthwise_conv2d_v1_2.mod.py
-    const builder = nn.createModelBuilder();
+    const builder = new MLGraphBuilder(context);
     const input =
         builder.input('input', {type: 'float32', dimensions: [1, 4, 2, 2]});
     const inputBuffer = new Float32Array(
@@ -181,10 +212,134 @@ describe('test conv2d', function() {
     const expected = [6010, 7046, 11000, 9000];
     const conv = builder.conv2d(input, filter, {groups: 4});
     const output = builder.add(conv, bias);
-    const model = builder.createModel({output});
-    const compilation = await model.compile();
-    const outputs = await compilation.compute({'input': {buffer: inputBuffer}});
+    const graph = await builder.build({output});
+    const outputs = await graph.compute({'input': {data: inputBuffer}});
     utils.checkShape(outputs.output.dimensions, [1, 4, 1, 1]);
-    utils.checkValue(outputs.output.buffer, expected);
+    utils.checkValue(outputs.output.data, expected);
+  });
+
+  it('conv2d transpose', async function() {
+    const builder = new MLGraphBuilder(context);
+    const input =
+        builder.input('input', {type: 'float32', dimensions: [1, 1, 3, 3]});
+    const filter = builder.constant(
+        {type: 'float32', dimensions: [1, 2, 3, 3]},
+        new Float32Array(18).fill(1));
+    const transpose = true;
+    const output = builder.conv2d(input, filter, {transpose});
+    const graph = await builder.build({output});
+    const inputs = {
+      'input': {
+        data: new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+      },
+    };
+    const outputs = await graph.compute(inputs);
+    utils.checkShape(outputs.output.dimensions, [1, 2, 5, 5]);
+    const expected = [
+      0.,  1.,  3.,  3.,  2.,  3.,  8.,  15., 12., 7.,  9.,  21., 36.,
+      27., 15., 9.,  20., 33., 24., 13., 6.,  13., 21., 15., 8.,  0.,
+      1.,  3.,  3.,  2.,  3.,  8.,  15., 12., 7.,  9.,  21., 36., 27.,
+      15., 9.,  20., 33., 24., 13., 6.,  13., 21., 15., 8.,
+    ];
+    utils.checkValue(outputs.output.data, expected);
+  });
+
+  it('conv2d transpose output shape', async function() {
+    const builder = new MLGraphBuilder(context);
+    const input =
+        builder.input('input', {type: 'float32', dimensions: [1, 1, 3, 3]});
+    const filter = builder.constant(
+        {type: 'float32', dimensions: [1, 2, 3, 3]},
+        new Float32Array(18).fill(1));
+    const strides = [3, 2];
+    const outputSizes = [10, 8];
+    const transpose = true;
+    const output =
+        builder.conv2d(input, filter, {strides, outputSizes, transpose});
+    const graph = await builder.build({output});
+    const inputs = {
+      'input': {
+        data: new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+      },
+    };
+    const outputs = await graph.compute(inputs);
+    utils.checkShape(outputs.output.dimensions, [1, 2, 10, 8]);
+    const expected = [
+      0., 0., 1.,  1., 3.,  2., 2., 0., 0., 0., 1.,  1., 3.,  2., 2., 0.,
+      0., 0., 1.,  1., 3.,  2., 2., 0., 3., 3., 7.,  4., 9.,  5., 5., 0.,
+      3., 3., 7.,  4., 9.,  5., 5., 0., 3., 3., 7.,  4., 9.,  5., 5., 0.,
+      6., 6., 13., 7., 15., 8., 8., 0., 6., 6., 13., 7., 15., 8., 8., 0.,
+      6., 6., 13., 7., 15., 8., 8., 0., 0., 0., 0.,  0., 0.,  0., 0., 0.,
+      0., 0., 1.,  1., 3.,  2., 2., 0., 0., 0., 1.,  1., 3.,  2., 2., 0.,
+      0., 0., 1.,  1., 3.,  2., 2., 0., 3., 3., 7.,  4., 9.,  5., 5., 0.,
+      3., 3., 7.,  4., 9.,  5., 5., 0., 3., 3., 7.,  4., 9.,  5., 5., 0.,
+      6., 6., 13., 7., 15., 8., 8., 0., 6., 6., 13., 7., 15., 8., 8., 0.,
+      6., 6., 13., 7., 15., 8., 8., 0., 0., 0., 0.,  0., 0.,  0., 0., 0.,
+    ];
+    utils.checkValue(outputs.output.data, expected);
+  });
+
+  it('conv2d transpose out pad', async function() {
+    const builder = new MLGraphBuilder(context);
+    const input =
+        builder.input('input', {type: 'float32', dimensions: [1, 1, 3, 3]});
+    const filter = builder.constant(
+        {type: 'float32', dimensions: [1, 2, 3, 3]},
+        new Float32Array(18).fill(1));
+    const strides = [3, 2];
+    const outputPadding = [1, 1];
+    const transpose = true;
+    const output =
+        builder.conv2d(input, filter, {strides, outputPadding, transpose});
+    const graph = await builder.build({output});
+    const inputs = {
+      'input': {
+        data: new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+      },
+    };
+    const outputs = await graph.compute(inputs);
+    utils.checkShape(outputs.output.dimensions, [1, 2, 10, 8]);
+    const expected = [
+      0., 0., 1.,  1., 3.,  2., 2., 0., 0., 0., 1.,  1., 3.,  2., 2., 0.,
+      0., 0., 1.,  1., 3.,  2., 2., 0., 3., 3., 7.,  4., 9.,  5., 5., 0.,
+      3., 3., 7.,  4., 9.,  5., 5., 0., 3., 3., 7.,  4., 9.,  5., 5., 0.,
+      6., 6., 13., 7., 15., 8., 8., 0., 6., 6., 13., 7., 15., 8., 8., 0.,
+      6., 6., 13., 7., 15., 8., 8., 0., 0., 0., 0.,  0., 0.,  0., 0., 0.,
+      0., 0., 1.,  1., 3.,  2., 2., 0., 0., 0., 1.,  1., 3.,  2., 2., 0.,
+      0., 0., 1.,  1., 3.,  2., 2., 0., 3., 3., 7.,  4., 9.,  5., 5., 0.,
+      3., 3., 7.,  4., 9.,  5., 5., 0., 3., 3., 7.,  4., 9.,  5., 5., 0.,
+      6., 6., 13., 7., 15., 8., 8., 0., 6., 6., 13., 7., 15., 8., 8., 0.,
+      6., 6., 13., 7., 15., 8., 8., 0., 0., 0., 0.,  0., 0.,  0., 0., 0.,
+    ];
+    utils.checkValue(outputs.output.data, expected);
+  });
+
+  it('conv2d transpose autopad same', async function() {
+    const builder = new MLGraphBuilder(context);
+    const input =
+        builder.input('input', {type: 'float32', dimensions: [1, 1, 3, 3]});
+    const filter = builder.constant(
+        {type: 'float32', dimensions: [1, 2, 3, 3]},
+        new Float32Array(18).fill(1));
+    const autoPad = 'same-lower';
+    const strides = [2, 2];
+    const transpose = true;
+    const output = builder.conv2d(input, filter, {autoPad, strides, transpose});
+    const graph = await builder.build({output});
+    const inputs = {
+      'input': {
+        data: new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+      },
+    };
+    const outputs = await graph.compute(inputs);
+    utils.checkShape(outputs.output.dimensions, [1, 2, 6, 6]);
+    const expected = [
+      0., 0.,  1.,  1.,  3.,  2.,  0., 0.,  1.,  1., 3.,  2.,  3.,  3.,  8.,
+      5., 12., 7.,  3.,  3.,  7.,  4., 9.,  5.,  9., 9.,  20., 11., 24., 13.,
+      6., 6.,  13., 7.,  15., 8.,  0., 0.,  1.,  1., 3.,  2.,  0.,  0.,  1.,
+      1., 3.,  2.,  3.,  3.,  8.,  5., 12., 7.,  3., 3.,  7.,  4.,  9.,  5.,
+      9., 9.,  20., 11., 24., 13., 6., 6.,  13., 7., 15., 8.,
+    ];
+    utils.checkValue(outputs.output.data, expected);
   });
 });

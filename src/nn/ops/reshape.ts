@@ -1,15 +1,14 @@
 import * as tf from '@tensorflow/tfjs-core';
 
-import {ExecutionContext} from '../compilation';
-import {Operand} from '../operand';
+import {MLOperand} from '../operand';
 import {SingleOutputOperation} from '../operation';
 import * as utils from '../utils';
 
 export class Reshape extends SingleOutputOperation {
-  private input_: Operand;
+  private input_: MLOperand;
   private newShape_: number[];
 
-  constructor(input: Operand, newShape: number[]) {
+  constructor(input: MLOperand, newShape: number[]) {
     super(input.builder);
     utils.validateOperand(input);
     this.input_ = input;
@@ -19,12 +18,12 @@ export class Reshape extends SingleOutputOperation {
     this.newShape_ = newShape;
   }
 
-  inputs(): Operand[] {
+  inputs(): MLOperand[] {
     return [this.input_];
   }
 
-  run(context: ExecutionContext): tf.Tensor {
-    const input: tf.Tensor = context.getTensor(this.input_);
+  run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor {
+    const input: tf.Tensor = inputTensors.get(this.input_);
     return tf.reshape(input, this.newShape_);
   }
 }
