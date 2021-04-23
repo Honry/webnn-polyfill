@@ -17,7 +17,7 @@ jobs:
           submodules: recursive
 
       - name: Test LS
-        uses: ls
+        run: ls
 
       - name: Install and Build
         run: |
