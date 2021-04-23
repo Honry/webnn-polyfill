@@ -1,6 +1,6 @@
 [![build and test](https://github.com/webmachinelearning/webnn-polyfill/workflows/build%20and%20test/badge.svg)](https://github.com/webmachinelearning/webnn-polyfill/actions)
 [![deploy](https://github.com/webmachinelearning/webnn-polyfill/workflows/deploy/badge.svg)](https://github.com/webmachinelearning/webnn-polyfill/actions)
- 
+
 # WebNN Polyfill
 
 A JavaScript implementation of the [Web Neural Network API](https://webmachinelearning.github.io/webnn/).
@@ -13,8 +13,7 @@ A JavaScript implementation of the [Web Neural Network API](https://webmachinele
 ### Setup
 
 ```sh
-> git clone --recurse-submodules https://github.com/webmachinelearning/webnn-polyfill
-> cd webnn-polyfill & npm install
+> npm install
 ```
 
 ### Build
