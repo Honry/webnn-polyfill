@@ -497,6 +497,57 @@ MappingDict = {
             }
         ]
     },
+    'PAD': {
+        'webnnOperation': 'pad',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'padding',
+                'mappingParamIndex': 1,
+                'mappingRuleType': 0
+            }
+        ]
+    },
+    'PAD_V2': {
+        'webnnOperation': 'pad',
+        'insList': [
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'padding',
+                'mappingParamIndex': 1,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'value',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'value',
+                'mappingRuleType': 1
+            }
+        ]
+    },
+    'POW': {
+        'webnnOperation': 'pow',
+        'insList': [
+            {
+                'name': 'input0',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'input1',
+                'mappingParamIndex': 1,
+                'mappingRuleType': 0
+            }
+        ]
+    },
     'RELU': {
         'webnnOperation': 'relu',
         'insList': [
@@ -675,6 +726,191 @@ MappingDict = {
                 'mappingParamIndex': 1,
                 'optionsDictKey': 'permutation',
                 'mappingRuleType': 2
+            }
+        ]
+    }
+}
+
+MappingDictFused = {
+    'CONV_2D': {
+        'webnnOperation': 'conv2d',
+        'insList': [ # only support for explicit paddings
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'filter',
+                'mappingParamIndex': 1,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'bias',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'bias',
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'paddingLeft',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 2, # [beginning_height, ending_height, beginning_width, ending_width]
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'paddingRight',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 3,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'paddingTop',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 0,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'paddingBottom',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 1,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'strideWidth',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'strides',
+                'sequenceIndex': 1, # [stride_height, stride_width]
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'strideHeight',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'strides',
+                'sequenceIndex': 0,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'activation',
+                'mappingParamIndex': -1
+            }
+        ],
+        'optionalInsList': [
+            {
+                'name': 'layout',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'layout',
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'dilationWidth',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'dilations',
+                'sequenceIndex': 1, # [dilation_height, dilation_width]
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'dilationHeight',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'dilations',
+                'sequenceIndex': 0,
+                'mappingRuleType': 1
+            }
+        ]
+    },
+    'DEPTHWISE_CONV_2D': {
+        'webnnOperation': 'conv2d',
+        'insList': [ # only support for explicit paddings
+            {
+                'name': 'input',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'filter',
+                'mappingParamIndex': 1,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'bias',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'bias',
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'paddingLeft',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 2, # [beginning_height, ending_height, beginning_width, ending_width]
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'paddingRight',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 3,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'paddingTop',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 0,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'paddingBottom',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'padding',
+                'sequenceIndex': 1,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'strideWidth',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'strides',
+                'sequenceIndex': 1, # [stride_height, stride_width]
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'strideHeight',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'strides',
+                'sequenceIndex': 0,
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'multiplier',
+                'mappingParamIndex': -1
+            },
+            {
+                'name': 'activation',
+                'mappingParamIndex': -1
+            }
+        ],
+        'optionalInsList': [
+            {
+                'name': 'layout',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'layout',
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'dilationWidth',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'dilations',
+                'sequenceIndex': 1, # [dilation_height, dilation_width]
+                'mappingRuleType': 1
+            },
+            {
+                'name': 'dilationHeight',
+                'mappingParamIndex': 2,
+                'optionsDictKey': 'dilations',
+                'sequenceIndex': 0,
+                'mappingRuleType': 1
             }
         ]
     }
