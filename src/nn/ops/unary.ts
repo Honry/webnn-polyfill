@@ -30,15 +30,57 @@ export abstract class Unary extends SingleOutputOperation {
   abstract runOp(x: tf.Tensor): tf.Tensor;
 }
 
+export class Abs extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.abs(x);
+  }
+}
+
+export class Ceil extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.ceil(x);
+  }
+}
+
+export class Cos extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.cos(x);
+  }
+}
+
 export class Exp extends Unary {
   runOp(x: tf.Tensor): tf.Tensor {
     return tf.exp(x);
   }
 }
 
-export class Sqrt extends Unary {
+export class Floor extends Unary {
   runOp(x: tf.Tensor): tf.Tensor {
-    return tf.sqrt(x);
+    return tf.floor(x);
+  }
+}
+
+export class Log extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.log(x);
+  }
+}
+
+export class Neg extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.neg(x);
+  }
+}
+
+export class Sin extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.sin(x);
+  }
+}
+
+export class Tan extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.tan(x);
   }
 }
 
@@ -67,5 +109,19 @@ export class Tanh extends UnaryMLOperator {
 export class Relu extends UnaryMLOperator {
   runOp(x: tf.Tensor): tf.Tensor {
     return tf.relu(x);
+  }
+}
+
+export class HardSwish extends UnaryMLOperator {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.div(
+      tf.mul(
+          x,
+          tf.maximum(
+              0,
+              tf.minimum(
+                  6,
+                  tf.add(x, 3)))),
+      6);
   }
 }
