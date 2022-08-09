@@ -7,6 +7,7 @@ import {Add, Div, MatMul, Max, Min, Mul, Pow, Sub} from './ops/binary';
 import {Clamp} from './ops/clamp';
 import {Concat} from './ops/concat';
 import {Conv2d} from './ops/conv2d';
+import {ConvTranspose2d} from './ops/conv_transpose2d';
 import {Gemm} from './ops/gemm';
 import {Gru, GruCell} from './ops/gru';
 import {InstanceNormalization} from './ops/instance_norm';
@@ -53,13 +54,13 @@ export interface MLClampOptions {
 }
 
 /**
- * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlfilteroperandlayout)
+ * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlconv2dfilteroperandlayout)
  */
-export enum MLFilterOperandLayout {
+export enum MLConv2dFilterOperandLayout {
   'oihw' = 'oihw',
   'hwio' = 'hwio',
   'ohwi' = 'ohwi',
-  'ihwo' = 'ihwo',
+  'ihwo' = 'ihwo'
 }
 
 /**
@@ -78,13 +79,36 @@ export interface MLConv2dOptions {
   padding?: [number, number, number, number];
   strides?: [number, number];
   dilations?: [number, number];
+  autoPad?: MLAutoPad;
+  groups?: number;
+  inputLayout?: MLInputOperandLayout;
+  filterLayout?: MLConv2dFilterOperandLayout;
+  bias?: MLOperand;
+  activation?: MLOperator;
+}
+
+/**
+ * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlconvtranspose2dfilteroperandlayout)
+ */
+export enum MLConvTranspose2dFilterOperandLayout {
+  'iohw' = 'iohw',
+  'hwoi' = 'hwoi',
+  'ohwi' = 'ohwi'
+}
+
+/**
+ * [spec](https://webmachinelearning.github.io/webnn/#dictdef-mlconvtranspose2doptions)
+ */
+export interface MLConvTranspose2dOptions {
+  padding?: [number, number, number, number];
+  strides?: [number, number];
+  dilations?: [number, number];
   outputPadding?: [number, number];
   outputSizes?: [number, number];
   autoPad?: MLAutoPad;
-  transpose?: boolean;
   groups?: number;
   inputLayout?: MLInputOperandLayout;
-  filterLayout?: MLFilterOperandLayout;
+  filterLayout?: MLConvTranspose2dFilterOperandLayout;
   bias?: MLOperand;
   activation?: MLOperator;
 }
@@ -177,6 +201,15 @@ export interface MLPadOptions {
   value?: number;
 }
 
+
+/**
+ * [spec](https://webmachinelearning.github.io/webnn/#enumdef-mlroundingtype)
+ */
+ export enum  MLRoundingType {
+  'floor' = 'floor',
+  'ceil' = 'ceil'
+}
+
 /**
  * [spec](https://webmachinelearning.github.io/webnn/#dictdef-mlpool2doptions)
  */
@@ -187,6 +220,8 @@ export interface MLPooling2dOptions {
   dilations?: [number, number];
   autoPad?: MLAutoPad;
   layout?: MLInputOperandLayout;
+  roundingType?: MLRoundingType;
+  outputSizes?: [number, number];
 }
 
 /**
@@ -365,6 +400,20 @@ export class MLGraphBuilder {
     }
     this.validateOperandBuilder(inputs);
     return (new Conv2d(input, filter, options)).getFusedOutputs()[0];
+  }
+
+  /**
+   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlgraphbuilder-convtranspose2d)
+   */
+  convTranspose2d(
+      input: MLOperand, filter: MLOperand, 
+      options: MLConvTranspose2dOptions = {}):MLOperand {
+    const inputs = [input, filter];
+    if (options.bias) {
+      inputs.push(options.bias);
+    }
+    this.validateOperandBuilder(inputs);
+    return (new ConvTranspose2d(input, filter, options)).getFusedOutputs()[0];
   }
 
   // start of element-wise binary operations
