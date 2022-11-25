@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>MLInput | webnn-polyfill</title>
+	<title>MLDeviceType | webnn-polyfill</title>
 	<meta name="description" content="Documentation for webnn-polyfill">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -53,13 +53,13 @@
 					<a href="../index.html">webnn-polyfill</a>
 				</li>
 				<li>
-					<a href="../modules/nn_graph.html">nn/graph</a>
+					<a href="../modules/nn_context.html">nn/context</a>
 				</li>
 				<li>
-					<a href="nn_graph.mlinput.html">MLInput</a>
+					<a href="nn_context.mldevicetype.html">MLDeviceType</a>
 				</li>
 			</ul>
-			<h1>Interface MLInput</h1>
+			<h1>Enumeration MLDeviceType</h1>
 		</div>
 	</div>
 </header>
@@ -69,51 +69,43 @@
 			<section class="tsd-panel tsd-comment">
 				<div class="tsd-comment tsd-typography">
 					<div class="lead">
-						<p><a href="https://webmachinelearning.github.io/webnn/#dictdef-mlinput">spec</a></p>
+						<p><a href="https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype">spec</a></p>
 					</div>
 				</div>
-			</section>
-			<section class="tsd-panel tsd-hierarchy">
-				<h3>Hierarchy</h3>
-				<ul class="tsd-hierarchy">
-					<li>
-						<span class="target">MLInput</span>
-					</li>
-				</ul>
 			</section>
 			<section class="tsd-panel-group tsd-index-group">
 				<h2>Index</h2>
 				<section class="tsd-panel tsd-index-panel">
 					<div class="tsd-index-content">
 						<section class="tsd-index-section ">
-							<h3>Properties</h3>
+							<h3>Enumeration members</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="nn_graph.mlinput.html#dimensions" class="tsd-kind-icon">dimensions</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="nn_graph.mlinput.html#resource" class="tsd-kind-icon">resource</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="nn_context.mldevicetype.html#cpu" class="tsd-kind-icon">cpu</a></li>
+								<li class="tsd-kind-enum-member tsd-parent-kind-enum"><a href="nn_context.mldevicetype.html#gpu" class="tsd-kind-icon">gpu</a></li>
 							</ul>
 						</section>
 					</div>
 				</section>
 			</section>
 			<section class="tsd-panel-group tsd-member-group ">
-				<h2>Properties</h2>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="dimensions" class="tsd-anchor"></a>
-					<h3>dimensions</h3>
-					<div class="tsd-signature tsd-kind-icon">dimensions<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">[]</span></div>
+				<h2>Enumeration members</h2>
+				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
+					<a name="cpu" class="tsd-anchor"></a>
+					<h3>cpu</h3>
+					<div class="tsd-signature tsd-kind-icon">cpu<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = &quot;cpu&quot;</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/Honry/webnn-polyfill/blob/09c8026/src/nn/graph.ts#L21">nn/graph.ts:21</a></li>
+							<li>Defined in <a href="https://github.com/Honry/webnn-polyfill/blob/c011e73/src/nn/context.ts#L22">nn/context.ts:22</a></li>
 						</ul>
 					</aside>
 				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="resource" class="tsd-anchor"></a>
-					<h3>resource</h3>
-					<div class="tsd-signature tsd-kind-icon">resource<span class="tsd-signature-symbol">:</span> <a href="../modules/nn_graph.html#mlresourcce" class="tsd-signature-type" data-tsd-kind="Type alias">MLResourcce</a></div>
+				<section class="tsd-panel tsd-member tsd-kind-enum-member tsd-parent-kind-enum">
+					<a name="gpu" class="tsd-anchor"></a>
+					<h3>gpu</h3>
+					<div class="tsd-signature tsd-kind-icon">gpu<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol"> = &quot;gpu&quot;</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/Honry/webnn-polyfill/blob/09c8026/src/nn/graph.ts#L20">nn/graph.ts:20</a></li>
+							<li>Defined in <a href="https://github.com/Honry/webnn-polyfill/blob/c011e73/src/nn/context.ts#L23">nn/context.ts:23</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -128,10 +120,10 @@
 					<li class=" tsd-kind-module">
 						<a href="../modules/ml.html">ml</a>
 					</li>
-					<li class=" tsd-kind-module">
+					<li class="current tsd-kind-module">
 						<a href="../modules/nn_context.html">nn/context</a>
 					</li>
-					<li class="current tsd-kind-module">
+					<li class=" tsd-kind-module">
 						<a href="../modules/nn_graph.html">nn/graph</a>
 					</li>
 					<li class=" tsd-kind-module">
@@ -150,32 +142,29 @@
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
-					<li class=" tsd-kind-class tsd-parent-kind-module">
-						<a href="../classes/nn_graph.mlgraph.html" class="tsd-kind-icon">MLGraph</a>
-					</li>
 				</ul>
 				<ul class="current">
-					<li class="current tsd-kind-interface tsd-parent-kind-module">
-						<a href="nn_graph.mlinput.html" class="tsd-kind-icon">MLInput</a>
+					<li class="current tsd-kind-enum tsd-parent-kind-module">
+						<a href="nn_context.mldevicetype.html" class="tsd-kind-icon">MLDevice<wbr>Type</a>
 						<ul>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="nn_graph.mlinput.html#dimensions" class="tsd-kind-icon">dimensions</a>
+							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+								<a href="nn_context.mldevicetype.html#cpu" class="tsd-kind-icon">cpu</a>
 							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="nn_graph.mlinput.html#resource" class="tsd-kind-icon">resource</a>
+							<li class=" tsd-kind-enum-member tsd-parent-kind-enum">
+								<a href="nn_context.mldevicetype.html#gpu" class="tsd-kind-icon">gpu</a>
 							</li>
 						</ul>
 					</li>
 				</ul>
 				<ul class="after-current">
-					<li class=" tsd-kind-type-alias tsd-parent-kind-module">
-						<a href="../modules/nn_graph.html#mlnamedinputs" class="tsd-kind-icon">MLNamed<wbr>Inputs</a>
+					<li class=" tsd-kind-enum tsd-parent-kind-module">
+						<a href="nn_context.mlpowerpreference.html" class="tsd-kind-icon">MLPower<wbr>Preference</a>
 					</li>
-					<li class=" tsd-kind-type-alias tsd-parent-kind-module">
-						<a href="../modules/nn_graph.html#mlnamedoutputs" class="tsd-kind-icon">MLNamed<wbr>Outputs</a>
+					<li class=" tsd-kind-class tsd-parent-kind-module">
+						<a href="../classes/nn_context.mlcontext.html" class="tsd-kind-icon">MLContext</a>
 					</li>
-					<li class=" tsd-kind-type-alias tsd-parent-kind-module">
-						<a href="../modules/nn_graph.html#mlresourcce" class="tsd-kind-icon">MLResourcce</a>
+					<li class=" tsd-kind-interface tsd-parent-kind-module">
+						<a href="../interfaces/nn_context.mlcontextoptions.html" class="tsd-kind-icon">MLContext<wbr>Options</a>
 					</li>
 				</ul>
 			</nav>
@@ -187,14 +176,13 @@
 		<h2>Legend</h2>
 		<div class="tsd-legend-group">
 			<ul class="tsd-legend">
-				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
-				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
-			</ul>
-			<ul class="tsd-legend">
 				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
 			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
