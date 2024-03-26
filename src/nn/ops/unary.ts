@@ -1,12 +1,13 @@
 import * as tf from '@tensorflow/tfjs-core';
 
 import {MLOperand, OutputOperand} from '../operand';
-import {MLOperator, SingleOutputOperation} from '../operation';
+import {MLActivation, SingleOutputOperation} from '../operation';
 import * as utils from '../utils';
 
 export abstract class Unary extends SingleOutputOperation {
   protected x_: MLOperand;
   private needCheckOutputShape_: boolean;
+  // private outputShape_: number[];
 
   constructor(x: MLOperand) {
     if (x !== undefined) {
@@ -18,10 +19,17 @@ export abstract class Unary extends SingleOutputOperation {
       this.x_ = undefined;
     }
     this.needCheckOutputShape_ = true;
+    this.createOutput();
   }
 
   inputs(): MLOperand[] {
     return [this.x_];
+  }
+
+  createOutput(): void {
+    if (this.x_) {
+      this.outputs_.push(new OutputOperand(this, this.x_.desc));
+    }
   }
 
   run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor {
@@ -92,35 +100,35 @@ export class Tan extends Unary {
   }
 }
 
-export abstract class UnaryMLOperator extends Unary implements MLOperator {
+export abstract class UnaryMLActivation extends Unary implements MLActivation {
   apply(x: MLOperand): OutputOperand {
     this.builder_ = x.builder;
     utils.validateOperand(x);
     this.x_ = x;
-    this.createOutput();
+    this.outputs_.push(new OutputOperand(this, this.x_.desc));
     return this.output;
   }
 }
 
-export class Sigmoid extends UnaryMLOperator {
+export class Sigmoid extends UnaryMLActivation {
   runOp(x: tf.Tensor): tf.Tensor {
     return tf.sigmoid(x);
   }
 }
 
-export class Tanh extends UnaryMLOperator {
+export class Tanh extends UnaryMLActivation {
   runOp(x: tf.Tensor): tf.Tensor {
     return tf.tanh(x);
   }
 }
 
-export class Relu extends UnaryMLOperator {
+export class Relu extends UnaryMLActivation {
   runOp(x: tf.Tensor): tf.Tensor {
     return tf.relu(x);
   }
 }
 
-export class HardSwish extends UnaryMLOperator {
+export class HardSwish extends UnaryMLActivation {
   runOp(x: tf.Tensor): tf.Tensor {
     return tf.div(
       tf.mul(
@@ -131,5 +139,11 @@ export class HardSwish extends UnaryMLOperator {
                   6,
                   tf.add(x, 3)))),
       6);
+  }
+}
+
+export class Softsign extends Unary {
+  runOp(x: tf.Tensor): tf.Tensor {
+    return tf.div(x, tf.add(tf.abs(x), 1));
   }
 }

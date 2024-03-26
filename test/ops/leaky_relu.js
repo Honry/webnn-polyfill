@@ -9,13 +9,16 @@ describe('test leakyRelu', () => {
 
   async function testLeakyRelu(input, expected, options = {}) {
     const builder = new MLGraphBuilder(context);
-    const x = builder.input('x', {type: 'float32', dimensions: input.shape});
+    const x =
+        builder.input('x', {dataType: 'float32', dimensions: input.shape});
     const y = builder.leakyRelu(x, options);
+    utils.checkDataType(y.dataType(), x.dataType());
+    utils.checkShape(y.shape(), x.shape());
     const graph = await builder.build({y});
     const inputs = {'x': new Float32Array(input.value)};
     const outputs = {'y': new Float32Array(utils.sizeOfShape(input.shape))};
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.y, expected);
+    const result = await context.compute(graph, inputs, outputs);
+    utils.checkValue(result.outputs.y, expected);
   }
 
   it('leakyRelu', async () => {

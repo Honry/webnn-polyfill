@@ -1,7 +1,7 @@
 import * as tf from '@tensorflow/tfjs-core';
 
 import {MLReduceOptions} from '../graph_builder';
-import {MLOperand} from '../operand';
+import {MLOperand, OutputOperand} from '../operand';
 import {SingleOutputOperation} from '../operation';
 import * as utils from '../utils';
 
@@ -10,6 +10,7 @@ abstract class Reduce extends SingleOutputOperation {
   private axes_?: number[];
   private keepDimensions_?: boolean;
   private needCheckOutputShape_ = true;
+  private outputShape_: number[];
 
   constructor(input: MLOperand, options: MLReduceOptions = {}) {
     super(input.builder);
@@ -17,7 +18,8 @@ abstract class Reduce extends SingleOutputOperation {
     this.input_ = input;
     if (options.axes !== undefined) {
       utils.assert(
-          utils.isIntegerArray(options.axes), 'The axes parameter is invalid.');
+          utils.isUnsignedIntegerArray(options.axes),
+          'The axes parameter is invalid.');
       this.axes_ = options.axes;
     } else {
       this.axes_ = undefined;
@@ -30,33 +32,36 @@ abstract class Reduce extends SingleOutputOperation {
     } else {
       this.keepDimensions_ = false;
     }
+
+    this.createOutput();
   }
 
   inputs(): MLOperand[] {
     return [this.input_];
   }
 
+  createOutput(): void {
+    const inpAxes = this.axes_ ?? [...Array(this.input_.rank()).keys()];
+    this.outputShape_ = this.input_.shape().slice();
+    for (let i = 0; i < inpAxes.length; ++i) {
+      this.outputShape_[inpAxes[i]] = 1;
+    }
+    if (!this.keepDimensions_) {
+      this.outputShape_ = this.outputShape_.filter((dim) => dim !== 1);
+    }
+    this.outputs_.push(new OutputOperand(this,
+      {dataType: this.input_.dataType(), dimensions: this.outputShape_}));
+  }
+
   run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor {
     const input: tf.Tensor = inputTensors.get(this.input_);
-    // accepts axis range [-r, r)
+    // accepts axis range [0, r)
     utils.assert(
         utils.validateAxes(this.axes_, input.rank),
-        `The axes must be in range [-${input.rank}, ${input.rank})`);
+        `The axes must be in range [0, ${input.rank})`);
     const output = this.runOp(input, this.axes_, this.keepDimensions_);
     if (this.needCheckOutputShape_) {
-      const inpAxes = this.axes_ ?? [...Array(input.rank).keys()];
-      let outputShape = input.shape.slice();
-      for (let i = 0; i < inpAxes.length; ++i) {
-        if (inpAxes[i] < 0) {
-          inpAxes[i] = input.rank + inpAxes[i];
-        }
-        outputShape[inpAxes[i]] = 1;
-      }
-      if (!this.keepDimensions_) {
-        outputShape = outputShape.filter((dim, axis) =>
-          !(dim === 1 && inpAxes.indexOf(axis) !== -1));
-      }
-      utils.checkShape(output.shape, outputShape);
+      utils.checkShape(output.shape, this.outputShape_);
       this.needCheckOutputShape_ = false;
     }
     return output;
@@ -64,6 +69,24 @@ abstract class Reduce extends SingleOutputOperation {
 
   abstract runOp(input: tf.Tensor, axes: number[], keepDimensions: boolean):
       tf.Tensor;
+}
+
+export class ReduceL1 extends Reduce {
+  runOp(input: tf.Tensor, axes: number[], keepDimensions: boolean): tf.Tensor {
+    return tf.sum(tf.abs(input), axes, keepDimensions);
+  }
+}
+
+export class ReduceL2 extends Reduce {
+  runOp(input: tf.Tensor, axes: number[], keepDimensions: boolean): tf.Tensor {
+    return tf.sqrt(tf.sum(tf.pow(input, 2), axes, keepDimensions));
+  }
+}
+
+export class ReduceLogSum extends Reduce {
+  runOp(input: tf.Tensor, axes: number[], keepDimensions: boolean): tf.Tensor {
+    return tf.log(tf.sum(input, axes, keepDimensions));
+  }
 }
 
 export class ReduceLogSumExp extends Reduce {
@@ -102,14 +125,8 @@ export class ReduceSum extends Reduce {
   }
 }
 
-export class ReduceL1 extends Reduce {
+export class ReduceSumSquare extends Reduce {
   runOp(input: tf.Tensor, axes: number[], keepDimensions: boolean): tf.Tensor {
-    return tf.sum(tf.abs(input), axes, keepDimensions);
-  }
-}
-
-export class ReduceL2 extends Reduce {
-  runOp(input: tf.Tensor, axes: number[], keepDimensions: boolean): tf.Tensor {
-    return tf.sqrt(tf.sum(tf.pow(input, 2), axes, keepDimensions));
+    return tf.sum(tf.pow(input, 2), axes, keepDimensions);
   }
 }

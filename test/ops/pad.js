@@ -7,18 +7,19 @@ describe('test pad', () => {
     context = await navigator.ml.createContext();
   });
 
-  async function testPad(input, paddings, options, expected) {
+  async function testPad(
+      input, beginningPadding, endingPadding, options, expected) {
     const builder = new MLGraphBuilder(context);
-    const x = builder.input('x', {type: 'float32', dimensions: input.shape});
-    const padding = builder.constant(
-        {type: 'int32', dimensions: paddings.shape},
-        new Int32Array(paddings.values));
-    const y = builder.pad(x, padding, options);
+    const x =
+        builder.input('x', {dataType: 'float32', dimensions: input.shape});
+    const y = builder.pad(x, beginningPadding, endingPadding, options);
+    utils.checkDataType(y.dataType(), x.dataType());
+    utils.checkShape(y.shape(), expected.shape);
     const graph = await builder.build({y});
     const inputs = {'x': new Float32Array(input.values)};
     const outputs = {'y': new Float32Array(utils.sizeOfShape(expected.shape))};
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.y, expected.values);
+    const result = await context.compute(graph, inputs, outputs);
+    utils.checkValue(result.outputs.y, expected.values);
   }
 
   it('pad default', async () => {
@@ -27,10 +28,8 @@ describe('test pad', () => {
           shape: [2, 3],
           values: [1, 2, 3, 4, 5, 6],
         },
-        {
-          shape: [2, 2],
-          values: [1, 1, 2, 2],
-        },
+        [1, 2],
+        [1, 2],
         {}, {
           shape: [4, 7],
           values: [
@@ -46,10 +45,8 @@ describe('test pad', () => {
           shape: [2, 3],
           values: [1, 2, 3, 4, 5, 6],
         },
-        {
-          shape: [2, 2],
-          values: [1, 1, 2, 2],
-        },
+        [1, 2],
+        [1, 2],
         {mode: 'constant'}, {
           shape: [4, 7],
           values: [
@@ -65,10 +62,8 @@ describe('test pad', () => {
           shape: [2, 3],
           values: [1, 2, 3, 4, 5, 6],
         },
-        {
-          shape: [2, 2],
-          values: [1, 1, 2, 2],
-        },
+        [1, 2],
+        [1, 2],
         {mode: 'constant',
           value: 9.}, {
           shape: [4, 7],
@@ -85,10 +80,8 @@ describe('test pad', () => {
           shape: [2, 3],
           values: [1, 2, 3, 4, 5, 6],
         },
-        {
-          shape: [2, 2],
-          values: [1, 1, 2, 2],
-        },
+        [1, 2],
+        [1, 2],
         {mode: 'edge'}, {
           shape: [4, 7],
           values: [
@@ -104,10 +97,8 @@ describe('test pad', () => {
           shape: [2, 3],
           values: [1, 2, 3, 4, 5, 6],
         },
-        {
-          shape: [2, 2],
-          values: [1, 1, 2, 2],
-        },
+        [1, 2],
+        [1, 2],
         {mode: 'reflection'}, {
           shape: [4, 7],
           values: [
@@ -123,10 +114,8 @@ describe('test pad', () => {
           shape: [2, 3],
           values: [1, 2, 3, 4, 5, 6],
         },
-        {
-          shape: [2, 2],
-          values: [1, 1, 2, 2],
-        },
+        [1, 2],
+        [1, 2],
         {mode: 'symmetric'}, {
           shape: [4, 7],
           values: [

@@ -71,7 +71,7 @@ describe('test MLContext', () => {
 });
 
 describe('test MLContext.compute', () => {
-  const desc = {type: 'float32', dimensions: [2, 2]};
+  const desc = {dataType: 'float32', dimensions: [2, 2]};
   const bufferA = new Float32Array(4).fill(1);
   const bufferB = new Float32Array(4).fill(1);
   const bufferC = new Float32Array(4);
@@ -89,10 +89,10 @@ describe('test MLContext.compute', () => {
     b = builder.input('b', desc);
     c = builder.matmul(a, b);
     d = builder.constant(
-        {type: 'float32', dimensions: [2, 2]}, new Float32Array(4).fill(1));
+        {dataType: 'float32', dimensions: [2, 2]}, new Float32Array(4).fill(1));
     e = builder.add(c, d);
-    x = builder.input('x', {type: 'float32', dimensions: [3, 2]});
-    y = builder.input('y', {type: 'float32', dimensions: [2, 4]});
+    x = builder.input('x', {dataType: 'float32', dimensions: [3, 2]});
+    y = builder.input('y', {dataType: 'float32', dimensions: [2, 4]});
     z = builder.matmul(x, y);
   });
 
@@ -104,30 +104,30 @@ describe('test MLContext.compute', () => {
     const graph = await builder.build({c});
     const inputs = {a: bufferA, b: bufferB};
     const outputs = {c: bufferC};
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.c, expectedC);
+    const result = await context.compute(graph, inputs, outputs);
+    utils.checkValue(result.outputs.c, expectedC);
   });
 
   it('MLContext.compute should support multiple outputs', async () => {
     const graph = await builder.build({c, e});
     const inputs = {a: bufferA, b: bufferB};
     const outputs = {c: bufferC, e: bufferE};
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.c, expectedC);
-    utils.checkValue(outputs.e, expectedE);
+    const result = await context.compute(graph, inputs, outputs);
+    utils.checkValue(result.outputs.c, expectedC);
+    utils.checkValue(result.outputs.e, expectedE);
   });
 
   it('MLContext.compute should support specified outputs', async () => {
     const graph = await builder.build({c, e});
     const inputs = {a: bufferA, b: bufferB};
     let outputs = {c: bufferC};
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.c, expectedC);
-    expect(outputs).not.to.have.property('e');
+    const result = await context.compute(graph, inputs, outputs);
+    utils.checkValue(result.outputs.c, expectedC);
+    expect(result.outputs).not.to.have.property('e');
     outputs = {e: bufferE};
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.e, expectedE);
-    expect(outputs).not.to.have.property('c');
+    const resultE = await context.compute(graph, inputs, outputs);
+    utils.checkValue(resultE.outputs.e, expectedE);
+    expect(resultE.outputs).not.to.have.property('c');
   });
 
   it('MLContext.compute should support inputs with specified shape',
@@ -143,9 +143,9 @@ describe('test MLContext.compute', () => {
         };
         const shapeZ = [shapeX[0], shapeY[1]];
         const outputs = {z: new Float32Array(utils.sizeOfShape(shapeZ))};
-        await context.compute(graph, inputs, outputs);
+        const result = await context.compute(graph, inputs, outputs);
         const expectedZ = new Array(utils.sizeOfShape(shapeZ)).fill(2);
-        utils.checkValue(outputs.z, expectedZ);
+        utils.checkValue(result.outputs.z, expectedZ);
       });
 
   it('MLContext.compute should throw for non parameter', async () => {
@@ -295,39 +295,40 @@ describe('test MLContext.compute', () => {
 
   it('MLGraph should be immutable after creation', async () => {
     const builder = new MLGraphBuilder(context);
-    const desc = {type: 'float32', dimensions: [2, 2]};
+    const desc = {dataType: 'float32', dimensions: [2, 2]};
     const a = builder.input('a', desc);
     const bufferB = new Float32Array(4).fill(1);
-    let b = builder.constant({type: 'float32', dimensions: [2, 2]}, bufferB);
+    let b =
+        builder.constant({dataType: 'float32', dimensions: [2, 2]}, bufferB);
     const c = builder.matmul(a, b);
     const bufferA = new Float32Array(4).fill(1);
     const expectedC = [2, 2, 2, 2];
     const graph = await builder.build({c});
     let inputs = {a: bufferA};
     const outputs = {c: bufferC};
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.c, expectedC);
+    const result = await context.compute(graph, inputs, outputs);
+    utils.checkValue(result.outputs.c, expectedC);
 
     // Change data of constant b should not impact graph compute.
     bufferB.set(new Array(4).fill(2));
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.c, expectedC);
+    const resultUpdatedBData = await context.compute(graph, inputs, outputs);
+    utils.checkValue(resultUpdatedBData.outputs.c, expectedC);
 
     // Replace b with a new constant should not impact graph compute.
-    b = builder.constant({type: 'float32', dimensions: [2, 2]}, bufferB);
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.c, expectedC);
+    b = builder.constant({dataType: 'float32', dimensions: [2, 2]}, bufferB);
+    const resultUpdatedB = await context.compute(graph, inputs, outputs);
+    utils.checkValue(resultUpdatedB.outputs.c, expectedC);
 
     // Change opearnd type of b should not impact graph compute.
     b = builder.input('b', desc);
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.c, expectedC);
+    const resultUpdatedBDesc = await context.compute(graph, inputs, outputs);
+    utils.checkValue(resultUpdatedBDesc.outputs.c, expectedC);
 
     // Create new model with new b.
     const graph2 = await builder.build({'c': builder.matmul(a, b)});
     inputs = {'a': bufferA, 'b': bufferB};
-    await context.compute(graph2, inputs, outputs);
-    utils.checkValue(outputs.c, [4, 4, 4, 4]);
+    const resultNewModel = await context.compute(graph2, inputs, outputs);
+    utils.checkValue(resultNewModel.outputs.c, [4, 4, 4, 4]);
   });
 
   it('MLContext should not leak memory', async () => {
@@ -345,29 +346,30 @@ describe('test MLContext.compute', () => {
       const hiddenSize = 5;
       const input = builder.input(
           'input',
-          {type: 'float32', dimensions: [steps, batchSize, inputSize]});
+          {dataType: 'float32', dimensions: [steps, batchSize, inputSize]});
       const weight = builder.constant(
           {
-            type: 'float32',
+            dataType: 'float32',
             dimensions: [numDirections, 3 * hiddenSize, inputSize],
           },
           new Float32Array(numDirections * 3 * hiddenSize * inputSize)
               .fill(0.1));
       const recurrentWeight = builder.constant(
           {
-            type: 'float32',
+            dataType: 'float32',
             dimensions: [numDirections, 3 * hiddenSize, hiddenSize],
           },
           new Float32Array(numDirections * 3 * hiddenSize * hiddenSize)
               .fill(0.1));
       const initialHiddenState = builder.constant(
-          {type: 'float32', dimensions: [numDirections, batchSize, hiddenSize]},
+          {dataType: 'float32',
+            dimensions: [numDirections, batchSize, hiddenSize]},
           new Float32Array(numDirections * batchSize * hiddenSize).fill(0));
       const bias = builder.constant(
-          {type: 'float32', dimensions: [numDirections, 3 * hiddenSize]},
+          {dataType: 'float32', dimensions: [numDirections, 3 * hiddenSize]},
           new Float32Array(numDirections * 3 * hiddenSize).fill(0.1));
       const recurrentBias = builder.constant(
-          {type: 'float32', dimensions: [numDirections, 3 * hiddenSize]},
+          {dataType: 'float32', dimensions: [numDirections, 3 * hiddenSize]},
           new Float32Array(numDirections * 3 * hiddenSize).fill(0));
       const operands = builder.gru(
           input, weight, recurrentWeight, steps, hiddenSize,
@@ -381,7 +383,7 @@ describe('test MLContext.compute', () => {
         output: new Float32Array(
             utils.sizeOfShape([numDirections, batchSize, hiddenSize])),
       };
-      await context.compute(graph, inputs, outputs);
+      const result = await context.compute(graph, inputs, outputs);
       const expected = [
         0.22391089,
         0.22391089,
@@ -399,7 +401,7 @@ describe('test MLContext.compute', () => {
         0.0797327,
         0.0797327,
       ];
-      utils.checkValue(outputs.output, expected);
+      utils.checkValue(result.outputs.output, expected);
 
       // Check memory leaks.
       graph.dispose();

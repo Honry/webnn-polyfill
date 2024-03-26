@@ -11,8 +11,12 @@ describe('test split', () => {
       inputShape, inputValue, expectedArray, splits, axis = undefined) {
     const builder = new MLGraphBuilder(context);
     const input =
-        builder.input('input', {type: 'float32', dimensions: inputShape});
+        builder.input('input', {dataType: 'float32', dimensions: inputShape});
     const splittedOperands = builder.split(input, splits, {axis});
+    for (let j = 0; j < splittedOperands.length; ++j) {
+      utils.checkDataType(splittedOperands[j].dataType(), input.dataType());
+      utils.checkShape(splittedOperands[j].shape(), expectedArray[j].shape);
+    }
     const namedOperands = {};
     for (let i = 0; i < splittedOperands.length; ++i) {
       namedOperands[`split${i}`] = splittedOperands[i];
@@ -24,9 +28,9 @@ describe('test split', () => {
       outputs[`split${i}`] =
           new Float32Array(utils.sizeOfShape(expectedArray[i].shape));
     }
-    await context.compute(graph, inputs, outputs);
+    const result = await context.compute(graph, inputs, outputs);
     for (let i = 0; i < splittedOperands.length; ++i) {
-      utils.checkValue(outputs[`split${i}`], expectedArray[i].value);
+      utils.checkValue(result.outputs[`split${i}`], expectedArray[i].value);
     }
   }
 

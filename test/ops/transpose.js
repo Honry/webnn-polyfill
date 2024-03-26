@@ -10,13 +10,15 @@ describe('test transpose', () => {
   async function checkTranspose(
       inputShape, inputData, expectedShape, expected, permutation = undefined) {
     const builder = new MLGraphBuilder(context);
-    const x = builder.input('x', {type: 'float32', dimensions: inputShape});
+    const x = builder.input('x', {dataType: 'float32', dimensions: inputShape});
     const y = builder.transpose(x, {permutation});
+    utils.checkDataType(y.dataType(), x.dataType());
+    utils.checkShape(y.shape(), expectedShape);
     const graph = await builder.build({y});
     const inputs = {'x': new Float32Array(inputData)};
     const outputs = {'y': new Float32Array(utils.sizeOfShape(expectedShape))};
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.y, expected);
+    const result = await context.compute(graph, inputs, outputs);
+    utils.checkValue(result.outputs.y, expected);
   }
 
   it('transpose default', async () => {

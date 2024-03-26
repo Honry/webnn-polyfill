@@ -33,7 +33,7 @@ describe('test mobilenetv2 nchw', function() {
       if (!fusedConv) {
         const conv = builder.add(
             builder.conv2d(input, weights, options),
-            builder.reshape(bias, [1, null, 1, 1]));
+            builder.reshape(bias, [1, bias.shape()[0], 1, 1]));
         if (relu6) {
           return builder.clamp(
               conv,
@@ -88,7 +88,7 @@ describe('test mobilenetv2 nchw', function() {
 
     async function buildMobileNet() {
       const data = builder.input(
-          'input', {type: 'float32', dimensions: [1, 3, 224, 224]});
+          'input', {dataType: 'float32', dimensions: [1, 3, 224, 224]});
       const conv0 = await buildConv(
           data, '0', true, {padding: [1, 1, 1, 1], strides: [2, 2]});
       const conv1 = await buildConv(
@@ -129,7 +129,7 @@ describe('test mobilenetv2 nchw', function() {
 
       const conv3 = await buildConv(bottleneck15, '95', true);
       const pool = builder.averagePool2d(conv3);
-      const reshape = builder.reshape(pool, [1, null]);
+      const reshape = builder.reshape(pool, [1, 1280]);
       const gemm = await buildGemm(reshape, '104');
       const mobileNetGraph = await builder.build({gemm});
       return mobileNetGraph;
@@ -161,10 +161,11 @@ describe('test mobilenetv2 nchw', function() {
       'input': await utils.createTypedArrayFromNpy(new URL(inputFile, url)),
     };
     const outputs = {'gemm': new Float32Array(utils.sizeOfShape([1, 1000]))};
-    await context.compute(graph, inputs, outputs);
+    const result = await context.compute(graph, inputs, outputs);
     const expected =
         await utils.createTypedArrayFromNpy(new URL(expectedFile, url));
-    utils.checkValue(outputs.gemm, expected, utils.modelFp32AccuracyCriteria);
+    utils.checkValue(
+        result.outputs.gemm, expected, utils.modelFp32AccuracyCriteria);
   }
 
   it('test_data_set_0', async () => {

@@ -5,7 +5,7 @@ import * as wasm from '@tensorflow/tfjs-backend-wasm';
 
 import * as tf from '@tensorflow/tfjs-core';
 
-import { MLGraph, MLNamedArrayBufferViews } from './graph';
+import { MLComputeResult, MLGraph, MLNamedArrayBufferViews } from './graph';
 import * as utils from './utils';
 
 
@@ -44,7 +44,7 @@ export interface MLContextOptions {
 }
 
 /**
- * [API spec](https://webmachinelearning.github.io/webnn/#mlcontext)
+ * [API spec](https://webmachinelearning.github.io/webnn/#api-mlcontext)
  */
 export class MLContext {
   private options_: MLContextOptions;
@@ -79,34 +79,26 @@ export class MLContext {
   }
 
   /**
-   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlcontext-compute)
+   * [spec](https://webmachinelearning.github.io/webnn/#api-mlcontext-compute)
    */
   async compute(
       graph: MLGraph,
       inputs: MLNamedArrayBufferViews,
-      outputs: MLNamedArrayBufferViews): Promise<void> {
-    await graph.compute(inputs, outputs);
-  }
-
-  /**
-   * [spec](https://webmachinelearning.github.io/webnn/#dom-mlcontext-computesync)
-   */
-  computeSync(
-      graph: MLGraph,
-      inputs: MLNamedArrayBufferViews,
-      outputs: MLNamedArrayBufferViews): void {
-      utils.assert(
-          typeof window === 'undefined' && typeof importScripts === 'function',
-          'computeSync() should only be allowed in dedicated worker.');
-      graph.computeSync(inputs, outputs);
+      outputs: MLNamedArrayBufferViews): Promise<MLComputeResult> {
+    const result = await graph.compute(inputs, outputs);
+    return result;
   }
 
   /** @internal */
-  // Expose tf.js for backend debugging.
+  // Expose tf interfance for setting backend.
   get tf(): unknown {
-    // Set directory of wasm binaries for 'wasm' backend
-    wasm.setWasmPaths(`https://unpkg.com/@tensorflow/tfjs-backend-wasm@${
-        tf.version_core}/dist/`);
     return tf;
+  }
+
+  /** @internal */
+  // Expose wasm interface for supporting configure threads for wasm backend.
+  //     wasm.setThreadsCount(n)
+  get wasm(): unknown {
+    return wasm;
   }
 }

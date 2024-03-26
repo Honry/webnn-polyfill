@@ -2,7 +2,7 @@ import * as tf from '@tensorflow/tfjs-core';
 
 import {MLBatchNormalizationOptions} from '../graph_builder';
 import {MLOperand, OutputOperand} from '../operand';
-import {FusedOperation, MLOperator, SingleOutputOperation} from '../operation';
+import {FusedOperation, MLActivation, SingleOutputOperation} from '../operation';
 import * as utils from '../utils';
 
 export class BatchNormalization extends SingleOutputOperation implements
@@ -14,7 +14,7 @@ export class BatchNormalization extends SingleOutputOperation implements
   private bias_?: MLOperand;
   private axis_?: number;
   private epsilon_?: number;
-  private activation_?: MLOperator;
+  private activation_?: MLActivation;
   private needCheckOutputShape_ = true;
 
   constructor(
@@ -33,7 +33,8 @@ export class BatchNormalization extends SingleOutputOperation implements
     this.bias_ = options.bias;
     if (options.axis !== undefined) {
       const axis = options.axis;
-      utils.assert(utils.isInteger(axis), 'The axis parameter is invalid.');
+      utils.assert(
+          utils.isUnsignedInteger(axis), 'The axis parameter is invalid.');
       this.axis_ = axis;
     } else {
       this.axis_ = 1;
@@ -47,6 +48,7 @@ export class BatchNormalization extends SingleOutputOperation implements
       this.epsilon_ = 1e-5;
     }
     this.activation_ = options.activation;
+    this.createOutput();
   }
 
   inputs(): MLOperand[] {
@@ -60,6 +62,11 @@ export class BatchNormalization extends SingleOutputOperation implements
     return inputs;
   }
 
+  createOutput(): void {
+    this.outputs_.push(new OutputOperand(this,
+      {dataType: this.input_.dataType(), dimensions: this.input_.shape()}));
+  }
+
   getFusedOutputs(): OutputOperand[] {
     if (this.activation_) {
       return [this.activation_.apply(this.output)];
@@ -70,10 +77,8 @@ export class BatchNormalization extends SingleOutputOperation implements
 
   run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor {
     const input: tf.Tensor = inputTensors.get(this.input_);
-    utils.assert(
-        this.axis_ < input.rank && this.axis_ >= -input.rank,
-        'The axis parameter is invalid.');
-    const axis = this.axis_ >= 0 ? this.axis_ : input.rank + this.axis_;
+    utils.assert(this.axis_ < input.rank, 'The axis parameter is invalid.');
+    const axis = this.axis_;
     const mean: tf.Tensor = inputTensors.get(this.mean_);
     utils.assert(mean.rank === 1, 'The mean operand is not 1-D.');
     const variance: tf.Tensor = inputTensors.get(this.variance_);

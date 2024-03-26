@@ -80,7 +80,7 @@ describe('test mobilenetv2 batchnorm nchw', function() {
       const padding = [1, 1, 1, 1];
       const strides = [2, 2];
       const data = builder.input(
-          'input', {type: 'float32', dimensions: [1, 3, 224, 224]});
+          'input', {dataType: 'float32', dimensions: [1, 3, 224, 224]});
       const batch0 =
           await buildConvBatchNorm(data, '0', '', true, {strides, padding});
       const bottleneck0 = await buildLinearBottleneck(
@@ -156,11 +156,11 @@ describe('test mobilenetv2 batchnorm nchw', function() {
     const outputs = {
       'reshape0': new Float32Array(utils.sizeOfShape([1, 1000])),
     };
-    await context.compute(graph, inputs, outputs);
+    const result = await context.compute(graph, inputs, outputs);
     const expected =
         await utils.createTypedArrayFromNpy(new URL(expectedFile, url));
     utils.checkValue(
-        outputs.reshape0, expected, utils.modelFp32AccuracyCriteria);
+        result.outputs.reshape0, expected, utils.modelFp32AccuracyCriteria);
   }
 
   it('test_data_set_0', async () => {

@@ -9,8 +9,10 @@ describe('test softmax', () => {
 
   it('softmax', async () => {
     const builder = new MLGraphBuilder(context);
-    const x = builder.input('x', {type: 'float32', dimensions: [3, 4]});
+    const x = builder.input('x', {dataType: 'float32', dimensions: [3, 4]});
     const y = builder.softmax(x);
+    utils.checkDataType(y.dataType(), x.dataType());
+    utils.checkShape(y.shape(), x.shape());
     const graph = await builder.build({y});
     const inputs = {
       'x': new Float32Array([
@@ -29,7 +31,7 @@ describe('test softmax', () => {
       ]),
     };
     const outputs = {'y': new Float32Array(utils.sizeOfShape([3, 4]))};
-    await context.compute(graph, inputs, outputs);
+    const result = await context.compute(graph, inputs, outputs);
     const expected = [
       0.32165375,
       0.36157736,
@@ -44,6 +46,6 @@ describe('test softmax', () => {
       0.35717794,
       0.21167983,
     ];
-    utils.checkValue(outputs.y, expected);
+    utils.checkValue(result.outputs.y, expected);
   });
 });

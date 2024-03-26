@@ -660,7 +660,7 @@ MappingDict = {
             {
                 'name': 'padding',
                 'mappingParamIndex': 1,
-                'mappingRuleType': 0
+                'mappingRuleType': 3
             }
         ]
     },
@@ -675,13 +675,28 @@ MappingDict = {
             {
                 'name': 'padding',
                 'mappingParamIndex': 1,
-                'mappingRuleType': 0
+                'mappingRuleType': 3
             },
             {
                 'name': 'value',
-                'mappingParamIndex': 2,
+                'mappingParamIndex': 3,
                 'optionsDictKey': 'value',
                 'mappingRuleType': 1
+            }
+        ]
+    },
+    'PRELU': {
+        'webnnOperation': 'prelu',
+        'insList': [
+            {
+                'name': 'input0',
+                'mappingParamIndex': 0,
+                'mappingRuleType': 0
+            },
+            {
+                'name': 'input1',
+                'mappingParamIndex': 1,
+                'mappingRuleType': 0
             }
         ]
     },
@@ -1041,24 +1056,6 @@ MappingDict = {
                 'name': 'input',
                 'mappingParamIndex': 0,
                 'mappingRuleType': 0
-            }
-        ]
-    },
-    'SQUEEZE': {
-        'webnnOperation': 'squeeze',
-        'insList': [
-            {
-                'name': 'input',
-                'mappingParamIndex': 0,
-                'mappingRuleType': 0
-            }
-        ],
-        'optionalInsList': [
-            {
-                'name': 'axes',
-                'mappingParamIndex': 1,
-                'optionsDictKey': 'axes',
-                'mappingRuleType': 2
             }
         ]
     },

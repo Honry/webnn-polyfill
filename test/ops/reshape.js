@@ -9,8 +9,10 @@ describe('test reshape', () => {
 
   async function testReshape(oldShape, newShape, expectedShape) {
     const builder = new MLGraphBuilder(context);
-    const x = builder.input('x', {type: 'float32', dimensions: oldShape});
+    const x = builder.input('x', {dataType: 'float32', dimensions: oldShape});
     const y = builder.reshape(x, newShape);
+    utils.checkDataType(y.dataType(), x.dataType());
+    utils.checkShape(y.shape(), newShape);
     const graph = await builder.build({y});
     const bufferSize = utils.sizeOfShape(oldShape);
     const inputBuffer = new Float32Array(bufferSize);
@@ -22,8 +24,8 @@ describe('test reshape', () => {
       'y': new Float32Array(
           utils.sizeOfShape(expectedShape ? expectedShape : newShape)),
     };
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.y, inputBuffer);
+    const result = await context.compute(graph, inputs, outputs);
+    utils.checkValue(result.outputs.y, inputBuffer);
   }
 
   it('reshape reordered_all_dims', async () => {

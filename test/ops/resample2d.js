@@ -9,13 +9,16 @@ describe('test resample2d', () => {
 
   async function testResample2d(input, options, expected) {
     const builder = new MLGraphBuilder(context);
-    const x = builder.input('x', {type: 'float32', dimensions: input.shape});
+    const x =
+        builder.input('x', {dataType: 'float32', dimensions: input.shape});
     const y = builder.resample2d(x, options);
+    utils.checkDataType(y.dataType(), x.dataType());
+    utils.checkShape(y.shape(), expected.shape);
     const graph = await builder.build({y});
     const inputs = {'x': new Float32Array(input.values)};
     const outputs = {'y': new Float32Array(utils.sizeOfShape(expected.shape))};
-    await context.compute(graph, inputs, outputs);
-    utils.checkValue(outputs.y, expected.values);
+    const result = await context.compute(graph, inputs, outputs);
+    utils.checkValue(result.outputs.y, expected.values);
   }
 
   it('resample2d upsample scales linear', async () => {

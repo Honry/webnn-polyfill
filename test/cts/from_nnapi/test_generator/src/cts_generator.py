@@ -132,6 +132,16 @@ def SupportedConvertReduce(inOprand, paramsList, insList):
 
     return flag
 
+def UpdateReduceAxes(axes, rank):
+    updatedAxes = []
+
+    for axis in axes:
+        if axis < 0:
+            axis += rank
+        updatedAxes.append(axis)
+
+    return updatedAxes
+
 def GetOperandIndex(opInfoList, opName):
     index = 0
     found = False
@@ -257,9 +267,9 @@ def GetWebNNOperandDesc(oprand, operation, opInsList, opInsInfoList, layout,
                     operandDims = [1, operandDims[0], 1, 1]
 
     if operation == 'INSTANCE_NORMALIZATION' and size != None:
-        operandDesc = "{type: '%s', dimensions: [%d]}" % (operandType, size)
+        operandDesc = "{dataType: '%s', dimensions: [%d]}" % (operandType, size)
     else:
-        operandDesc = "{type: '%s', dimensions: %s}" % (operandType, operandDims)
+        operandDesc = "{dataType: '%s', dimensions: %s}" % (operandType, operandDims)
     return operandDesc
 
 def PrintInputOperand(oprand, operation, opInsList, opInsInfoList, layout,
@@ -302,6 +312,14 @@ def PrintConstant(oprand, operation, opInsList, opInsInfoList, layout,
         operand = "const %s = builder.constant(%s, new %s(%s));" % \
               (oprand, opDesc, oprand.type.mappingTypedArrayType, opValue)
     IndentedPrint(operand, indent=4, file=test)
+
+def PrintBeginningPaddingAndEndingPadding(paddingValues):
+    # split original padding into beginningPadding and endingPadding
+    indexs = range(len(paddingValues))
+    beginningPadding = [paddingValues[i] for i in indexs if i % 2 == 0]
+    endingPadding = [paddingValues[i] for i in indexs if i % 2 == 1]
+    IndentedPrint('const beginningPadding = %s;' % beginningPadding, indent=4, file=test)
+    IndentedPrint('const endingPadding = %s;' % endingPadding, indent=4, file=test)
 
 def CheckDefaultParameterValue(op, inputFeedDict, paramsList):
     flag = False
@@ -363,7 +381,7 @@ def GetWebNNOperationParamsList(opInsInfoList, opInsList, inputFeedDict,
                 break
     else:
         # Refer to
-        #   https://webmachinelearning.github.io/webnn/#api-modelbuilder-concat
+        # https://webmachinelearning.github.io/webnn/#api-mlgraphbuilder-concat
         # WebNN API concat Op has sequence<Operand> inputs
         d[0] = []
         for ins in opInsList[:-1]:
@@ -401,9 +419,22 @@ def UpdateWebNNOperationOptionalParamValue(operation, targetValue, kvList):
         elif operation == 'RESIZE_BILINEAR':
             targetValue['mode'] = 'linear'
 
-def GetWebNNParamsString(params):
+def UpdateSliceSizes(sizes, dimensions):
+    if sizes.count(-1) > 0:
+        index = sizes.index(-1)
+        # update sizes[index] of -1 with input dimensions[index]
+        sizes[index] = dimensions[index]
+        UpdateSliceSizes(sizes, dimensions)
+    else:
+        # no need to update sizes without -1
+        pass
+
+def GetWebNNParamsString(params, operation):
     paramsList = [p[1] for p in params]
     paramsStr = '%s' % paramsList
+    if operation in ['PAD', 'PAD_V2']:
+        # replace original 2nd padding parameter with 'beginningPadding, endingPadding'
+        paramsStr = paramsStr.replace(str(params[1][1]), 'beginningPadding, endingPadding')
     return paramsStr[1:-1]
 
 def PrintMappedReluOpertions(fusedReluMappedInfo, outputOp, operandName):
@@ -614,6 +645,7 @@ def DumpCtsTest(example, test, fused):
         IndentedPrint("const builder = new MLGraphBuilder(context);",
                       indent=4, file=test)
         computeParamsList = []
+        sliceInputDimensions = []
         # Create operand(s) by ModelBuilder.input
         for op in curInputsList:
             opInsDict = nnapiOpInsList[curOpInsList.index(op)]
@@ -621,6 +653,9 @@ def DumpCtsTest(example, test, fused):
             if mappingParamIndex != -1:
                 rule = md.MappingRule(opInsDict['mappingRuleType'])
                 if rule == md.MappingRule.OPERAND_OPERAND:
+                    if nnapiOp == 'SLICE' and mappingParamIndex == 0:
+                        # save input dimensions to update sizes
+                        sliceInputDimensions = op.type.dimensions
                     PrintInputOperand(op, nnapiOp, curOpInsList, nnapiOpInsList,
                                       layout, test, fused)
                     PrintInputData(op, nnapiOp, curOpInsList,
@@ -639,6 +674,9 @@ def DumpCtsTest(example, test, fused):
                 elif rule == md.MappingRule.OPERAND_ARRAY:
                     varValue = inputFeedDict[op]
                     if len(varValue) != 0:
+                        if nnapiOp == 'SLICE' and mappingParamIndex == 2:
+                            # sizes paramter
+                            UpdateSliceSizes(varValue, sliceInputDimensions)
                         IndentedPrint('const %s = %s;' % (op, varValue),
                                       indent=4, file=test)
                 if nnapiOp == 'INSTANCE_NORMALIZATION' and opInsDict['name'] == 'input':
@@ -657,42 +695,53 @@ def DumpCtsTest(example, test, fused):
             opInsDict = nnapiOpInsList[curOpInsList.index(op)]
             mappingParamIndex = opInsDict['mappingParamIndex']
             if mappingParamIndex != -1:
-                rule = md.MappingRule(opInsDict['mappingRuleType'])
-                if rule == md.MappingRule.OPERAND_OPERAND:
-                    PrintConstant(op, nnapiOp, curOpInsList, nnapiOpInsList,
-                                  layout, test, fused, size)
-                elif rule == md.MappingRule.VARIABLE_VARIABLE:
-                    varValue = curParamsList[curParamsList.index(op)].value[0]
-                    if opInsDict['name'] == 'layout':
-                        if varValue:
-                            varValue = "'nchw'"
-                        else:
-                            varValue = "'nhwc'"
-                    if type(varValue) is bool:
-                        # Python use True/False, JavaScript use true/false as boolean value
-                        if varValue:
-                            IndentedPrint('const %s = true;' % op, indent=4,
-                                          file=test)
-                        else:
-                            IndentedPrint('const %s = false;' % op, indent=4,
-                                          file=test)
-                    else:
-                        IndentedPrint('const %s = %s;' % (op, varValue),
-                                      indent=4, file=test)
-                elif rule == md.MappingRule.OPERAND_VARIABLE:
+                if nnapiOp in ['PAD', 'PAD_V2'] and opInsDict['name'].startswith('padding'):
                     varValue = curParamsList[curParamsList.index(op)].value
-                    if len(varValue) != 0 and varValue[0] is not None:
-                        if nnapiOp == 'RESHAPE':
-                            IndentedPrint(('const %s = %s;' % (op, varValue)).replace('-1', 'null'),
-                                        indent=4, file=test)
+                    PrintBeginningPaddingAndEndingPadding(varValue)
+                else:
+                    rule = md.MappingRule(opInsDict['mappingRuleType'])
+                    if rule == md.MappingRule.OPERAND_OPERAND:
+                        PrintConstant(op, nnapiOp, curOpInsList, nnapiOpInsList,
+                                    layout, test, fused, size)
+                    elif rule == md.MappingRule.VARIABLE_VARIABLE:
+                        varValue = curParamsList[curParamsList.index(op)].value[0]
+                        if opInsDict['name'] == 'layout':
+                            if varValue:
+                                varValue = "'nchw'"
+                            else:
+                                varValue = "'nhwc'"
+                        if type(varValue) is bool:
+                            # Python use True/False, JavaScript use true/false as boolean value
+                            if varValue:
+                                IndentedPrint('const %s = true;' % op, indent=4,
+                                            file=test)
+                            else:
+                                IndentedPrint('const %s = false;' % op, indent=4,
+                                            file=test)
                         else:
+                            if nnapiOp == 'SPLIT' and mappingParamIndex == 2:
+                                if varValue < 0:
+                                    # update negative axis in range [0, r)
+                                    varValue += len(curInputsList[0].dimensions)
                             IndentedPrint('const %s = %s;' % (op, varValue),
                                         indent=4, file=test)
-                elif rule == md.MappingRule.OPERAND_ARRAY:
-                    varValue = curParamsList[curParamsList.index(op)].value
-                    if len(varValue) != 0:
-                        IndentedPrint('const %s = %s;' % (op, varValue),
-                                      indent=4, file=test)
+                    elif rule == md.MappingRule.OPERAND_VARIABLE:
+                        varValue = curParamsList[curParamsList.index(op)].value
+                        if len(varValue) != 0 and varValue[0] is not None:
+                            if nnapiOp == 'RESHAPE':
+                                IndentedPrint(('const %s = %s;' % (op, varValue)).replace('-1', 'null'),
+                                            indent=4, file=test)
+                            else:
+                                IndentedPrint('const %s = %s;' % (op, varValue),
+                                            indent=4, file=test)
+                    elif rule == md.MappingRule.OPERAND_ARRAY:
+                        varValue = curParamsList[curParamsList.index(op)].value
+                        if len(varValue) != 0:
+                            if nnapiOp.startswith('REDUCE'):
+                                # update negative axis in range [0, r)
+                                varValue = UpdateReduceAxes(varValue, len(curInputsList[0].dimensions))
+                            IndentedPrint('const %s = %s;' % (op, varValue),
+                                        indent=4, file=test)
             else:
                 if opInsDict['name'] == 'bias':
                     biasOp = op
@@ -728,9 +777,9 @@ def DumpCtsTest(example, test, fused):
                                                     nnapiOp)
         UpdateWebNNOperationOptionalParamValue(nnapiOp, mappingParams[-1][1],
                                                optionsKeyValueList)
-        webnnParamsStr = GetWebNNParamsString(mappingParams)
+        webnnParamsStr = GetWebNNParamsString(mappingParams, nnapiOp)
         if nnapiOp == 'SQRT':
-            exponent = "const exponent = builder.constant({type: 'float32'," + \
+            exponent = "const exponent = builder.constant({dataType: 'float32'," + \
                 " dimensions: [1]}, new Float32Array([0.5]));"
             IndentedPrint(exponent, indent=4, file=test)
             webnnParamsStr = ', '.join([webnnParamsStr, 'exponent'])
@@ -758,7 +807,7 @@ def DumpCtsTest(example, test, fused):
             outputStr = ', '.join(outputNameBufferList)
             IndentedPrint(
                 "const outputs = {%s};" % outputStr, indent=4, file=test)            
-        IndentedPrint("await context.compute(graph, {%s}, outputs);" % \
+        IndentedPrint("const computeResult = await context.compute(graph, {%s}, outputs);" % \
                       ', '.join(computeParamsList), indent=4, file=test)
         # Check compute output
         criteria = 'utils.ctsFp32RestrictAccuracyCriteria'
@@ -766,12 +815,12 @@ def DumpCtsTest(example, test, fused):
             criteria = 'utils.ctsFp32RelaxedAccuracyCriteria'
         if len(curOutputsList) == 1:
             IndentedPrint(
-                "utils.checkValue(outputs.%s, expected, %s);" % \
+                "utils.checkValue(computeResult.outputs.%s, expected, %s);" % \
                 (outputOp, criteria), indent=4, file=test)
         elif len(curOutputsList) > 1:
             IndentedPrint('for (let i = 0; i < %d; i++) {' % \
                           len(curOutputsList), indent=4, file=test)
-            dataStr = 'outputs[%s[i]]' % ['%s' % k for k in outputOp]
+            dataStr = 'computeResult.outputs[%s[i]]' % ['%s' % k for k in outputOp]
             IndentedPrint(
                 "utils.checkValue(%s, expected[i], %s);" % \
                 (dataStr, criteria), indent=6, file=test)

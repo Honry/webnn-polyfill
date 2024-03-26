@@ -1,24 +1,37 @@
 import * as tf from '@tensorflow/tfjs-core';
 
 import {MLPaddingMode, MLPadOptions} from '../graph_builder';
-import {MLOperand} from '../operand';
+import {MLOperand, OutputOperand} from '../operand';
 import {SingleOutputOperation} from '../operation';
 import * as utils from '../utils';
 
 export class Pad extends SingleOutputOperation {
   private input_: MLOperand;
-  private padding_: MLOperand;
+  private beginningPadding_: [number, number];
+  private endingPadding_: [number, number];
   private mode_: MLPaddingMode = MLPaddingMode.constant;
   private value_ = 0;
   private needCheckOutputShape_ = true;
+  private outputShape_: number[];
 
   constructor(
-      input: MLOperand, padding: MLOperand, options: MLPadOptions = {}) {
+      input: MLOperand,
+      beginningPadding: [number, number],
+      endingPadding: [number, number],
+      options: MLPadOptions = {}) {
     super(input.builder);
     utils.validateOperand(input);
     this.input_ = input;
-    utils.validateOperand(padding);
-    this.padding_ = padding;
+    utils.assert(
+      utils.isUnsignedIntegerArray(beginningPadding),
+      'Each element of the beginningPadding parameter should be unsigned ' +
+          'interger.');
+    this.beginningPadding_ = beginningPadding;
+    utils.assert(
+      utils.isUnsignedIntegerArray(endingPadding),
+      'Each element of the endingPadding parameter should be unsigned ' +
+          'interger.');
+    this.endingPadding_ = endingPadding;
     if (options.mode !== undefined) {
       utils.assert(
           options.mode in MLPaddingMode, 'The mode parameter is invalid.');
@@ -27,22 +40,33 @@ export class Pad extends SingleOutputOperation {
     if (options.value !== undefined) {
       this.value_ = options.value;
     }
+    this.createOutput();
   }
 
   inputs(): MLOperand[] {
-    return [this.input_, this.padding_];
+    return [this.input_];
+  }
+
+  createOutput(): void {
+    this.outputShape_ = this.input_.shape().map(
+      (value, index) => 
+          value + this.beginningPadding_[index] + this.endingPadding_[index]);
+    this.outputs_.push(new OutputOperand(this,
+      {dataType: this.input_.dataType(), dimensions: this.outputShape_}));
   }
 
   run(inputTensors: Map<MLOperand, tf.Tensor>): tf.Tensor {
     const input: tf.Tensor = inputTensors.get(this.input_);
-    const padding: tf.Tensor = inputTensors.get(this.padding_);
     utils.assert(
-        padding.rank === 2 && padding.dtype === 'int32' &&
-            padding.shape[0] === input.rank,
-        'The padding operand is invalid.');
-    const paddingArray = padding.arraySync() as Array<[number, number]>;
-    const outputShape = input.shape.map(
-        (val, index) => val + paddingArray[index][0] + paddingArray[index][1]);
+        this.beginningPadding_.length === input.shape.length,
+        'The length of beginningPadding parameter should be equal to the ' +
+            'lenght of input shape.');
+    utils.assert(
+        this.endingPadding_.length === input.shape.length,
+        'The length of endingPadding parameter should be equal to the ' +
+            'lenght of input shape.');
+    const paddingArray: Array<[number, number]> = this.beginningPadding_.map(
+        (val, index) => [val, this.endingPadding_[index]]);
     let output;
     if (this.mode_ === MLPaddingMode.constant) {
       output = tf.pad(input, paddingArray, this.value_);
@@ -80,7 +104,7 @@ export class Pad extends SingleOutputOperation {
       }
     }
     if (this.needCheckOutputShape_) {
-      utils.checkShape(output.shape, outputShape);
+      utils.checkShape(output.shape, this.outputShape_);
       this.needCheckOutputShape_ = false;
     }
     return output;

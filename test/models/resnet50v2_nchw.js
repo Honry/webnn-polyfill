@@ -114,7 +114,7 @@ describe('test resnet50v2 nchw', function() {
 
     async function buildResNet() {
       const data =
-          builder.input('input', {type: 'float32', dimensions: [1, 3, 224, 224]});
+          builder.input('input', {dataType: 'float32', dimensions: [1, 3, 224, 224]});
       const bn1 = await buildBatchNorm(data, '0', '', false);
       const conv0 = await buildConv(
           bn1, '0', '', {padding: [3, 3, 3, 3], strides: [2, 2]});
@@ -164,7 +164,7 @@ describe('test resnet50v2 nchw', function() {
 
       const bn3 = await buildBatchNorm(bottleneck16, '2', '');
       const pool2 = await builder.averagePool2d(bn3);
-      const reshape = builder.reshape(pool2, [1, null]);
+      const reshape = builder.reshape(pool2, [1, 2048]);
       const gemm = await buildGemm(reshape, '0');
       const resNetGraph = await builder.build({gemm});
       return resNetGraph;
@@ -196,11 +196,11 @@ describe('test resnet50v2 nchw', function() {
       'input': await utils.createTypedArrayFromNpy(new URL(inputFile, url))};
     const outputs = {
       'gemm': new Float32Array(utils.sizeOfShape([1, 1000]))};
-    await context.compute(graph, inputs, outputs);
+    const result = await context.compute(graph, inputs, outputs);
     const expected =
         await utils.createTypedArrayFromNpy(new URL(expectedFile, url));
     utils.checkValue(
-        outputs.gemm, expected,
+        result.outputs.gemm, expected,
         // refer to onnx
         // https://github.com/onnx/models/blob/master/workflow_scripts/ort_test_dir_utils.py#L239
         new utils.AccuracyCriterion(1e-3, 1e-3));

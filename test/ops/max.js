@@ -9,9 +9,11 @@ describe('test max', () => {
 
   it('max', async () => {
     const builder = new MLGraphBuilder(context);
-    const a = builder.input('a', {type: 'float32', dimensions: [3, 4, 5]});
-    const b = builder.input('b', {type: 'float32', dimensions: [3, 4, 5]});
+    const a = builder.input('a', {dataType: 'float32', dimensions: [3, 4, 5]});
+    const b = builder.input('b', {dataType: 'float32', dimensions: [3, 4, 5]});
     const c = builder.max(a, b);
+    utils.checkDataType(c.dataType(), a.dataType());
+    utils.checkShape(c.shape(), [3, 4, 5]);
     const graph = await builder.build({c});
     const inputs = {
       'a': new Float32Array([
@@ -44,7 +46,7 @@ describe('test max', () => {
       ]),
     };
     const outputs = {c: new Float32Array(utils.sizeOfShape([3, 4, 5]))};
-    await context.compute(graph, inputs, outputs);
+    const result = await context.compute(graph, inputs, outputs);
     const expected = [
       0.54270846, 0.3356357,   0.17466596, 1.6710619,   1.3720452,  1.4024457,
       -0.5183214, -0.26632488, 0.16786452, -0.2980101,  0.12268824, 1.8612522,
@@ -57,14 +59,16 @@ describe('test max', () => {
       1.1591603,  0.5907742,   -0.507083,  -0.8065648,  2.0162134,  1.460351,
       1.4930215,  1.6682644,   1.0773797,  0.43166366,  -0.5337765, 0.27636543,
     ];
-    utils.checkValue(outputs.c, expected);
+    utils.checkValue(result.outputs.c, expected);
   });
 
   it('max broadcast', async () => {
     const builder = new MLGraphBuilder(context);
-    const a = builder.input('a', {type: 'float32', dimensions: [3, 4, 5]});
-    const b = builder.input('b', {type: 'float32', dimensions: [5]});
+    const a = builder.input('a', {dataType: 'float32', dimensions: [3, 4, 5]});
+    const b = builder.input('b', {dataType: 'float32', dimensions: [5]});
     const c = builder.max(a, b);
+    utils.checkDataType(c.dataType(), a.dataType());
+    utils.checkShape(c.shape(), [3, 4, 5]);
     const graph = await builder.build({c});
     const inputs = {
       'a': new Float32Array([
@@ -90,7 +94,7 @@ describe('test max', () => {
       ]),
     };
     const outputs = {c: new Float32Array(utils.sizeOfShape([3, 4, 5]))};
-    await context.compute(graph, inputs, outputs);
+    const result = await context.compute(graph, inputs, outputs);
     const expected = [
       0.67538136, 0.3535401,  1.0303422, -0.24858657, 0.36215156,
       0.67538136, 1.540389,   1.9143543, 0.4806893,   0.0123093,
@@ -105,6 +109,6 @@ describe('test max', () => {
       0.67538136, 1.0456259,  1.0303422, 0.5966878,   0.7607826,
       0.9664813,  0.3535401,  1.0303422, 0.38655168,  -0.25600532,
     ];
-    utils.checkValue(outputs.c, expected);
+    utils.checkValue(result.outputs.c, expected);
   });
 });
